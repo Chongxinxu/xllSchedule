@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh" data-page-node-id="MLiqAaTDe3f82P6fNK2dLW"><head data-page-node-id="Q0gGsYQkmQZhYEKmJP4r53">
+<meta charset="UTF-8" data-page-node-id="7rZMkSxGgvaZJpoPkMqCDE">
+<meta name="viewport" content="width=device-width, initial-scale=1" data-page-node-id="qKBAH8yaGt4yOKx2SGE3U1">
+<title>课程管理系统 · Система расписания</title>
+<link rel="stylesheet" href="styles.css" data-page-node-id="IVDskekBwsOth9tisqTpVD">
+<style id="__dm_no_drag_style__">* { -webkit-user-drag: none !important; }</style><style id="__dm_bindable_badge_style__">[data-sp-bindable="database"]{outline:1px dashed #0088ff;outline-offset:2px;border-radius:4px;}[data-sp-bindable="database"] *{pointer-events:none !important;transition:none !important;animation:none !important;}[data-sp-bindable="database"]{transition:none !important;animation:none !important;}</style></head>
+<body data-page-node-id="Apd1VCDBw1rInLzy4wUm0V" style="position: relative;">
+
+<header data-page-node-id="IzZBaxFPfbp1EwOPahfcUk">
+  <div class="brand" data-page-node-id="a8Km74LNEcZ5X1cH2Vw7pW">
+    <div class="brand-mark" data-page-node-id="hpSrV7TBtUoBnoo1CL5b5w">课</div>
+    <div data-page-node-id="XSC29H4SpXzUZfJCEO44Aw">
+      <h1 id="app-title" data-page-node-id="eN3CcL7psn1319OcuKTV8g">课程管理系统</h1>
+      <div class="tagline" id="app-tagline" data-page-node-id="Fu7dpzOpWF0KBM9vEB4Z6t">硕士课程表 · 个人课表 · 多语言</div>
+    </div>
+  </div>
+
+  <div class="view-tabs" id="view-tabs" data-page-node-id="NQe2X4ClcFZWzzRUrPQFwO">
+    <button data-view="week" class="active" id="tab-week" data-page-node-id="Ec58sMAUcQTsrX4NR0lvQ1">周视图</button>
+    <button data-view="day" id="tab-day" data-page-node-id="9bokPbXCpMGeLlAP2vj6kf">日视图</button>
+    <button data-view="month" id="tab-month" data-page-node-id="bAjl3TgnGTL0186CZZ7Ysp">月视图</button>
+    <button data-view="list" id="tab-list" data-page-node-id="8h1ZBxJJKQwe9eoJOIyPmJ">明细表</button>
+  </div>
+
+  <div class="spacer" data-page-node-id="n26VNDpOtNW8ZnzIiBFfk7"></div>
+
+  <div class="lang-switch" data-page-node-id="yCKgCHFbNKR2WWWLA5X8fv">
+    <button id="lang-zh" class="active" data-page-node-id="E6EXMHWT4RMMpMIj46q2p5">中</button>
+    <button id="lang-ru" data-page-node-id="Y81hwxS5rdABzTBs1W59sG">RU</button>
+  </div>
+
+  <div class="user-nav" data-page-node-id="fWnxbc4F6ZeEYYikzQuCNQ">
+    <span class="badge" id="perm-badge" data-page-node-id="oEjvDbvpqkjIQYyXslizeP">只读访客</span>
+    <span id="user-label" style="font-size:12px;color:var(--muted)" data-page-node-id="c4jJYhLANDEiPabkS3LKGG"></span>
+    <button class="link-btn hidden" id="btn-profile" data-page-node-id="xBhx8iX2tMYZvHNEGN71w0">个人设置</button>
+    <button class="primary-btn" id="btn-login" data-page-node-id="ollXdFeS33kv6r6i0QztA7">登录 / 注册</button>
+    <button class="link-btn danger hidden" id="btn-logout" data-page-node-id="Ar7B8vGmexC20MreyOxeR2">退出登录</button>
+  </div>
+</header>
+
+<div class="banner offline hidden" id="offline-banner" data-page-node-id="Zvv9bhkV030zU70LyoBTrY"><span id="offline-text"></span><button class="link-btn" id="btn-local-admin" style="margin-left:auto;white-space:nowrap">启用本地管理</button></div>
+
+<div class="wrap" data-page-node-id="AvHL4zSGYfi0PvFTWJc1EL">
+  <div class="meta-row" data-page-node-id="BiisC7sx9maLDowB0noqcV">
+    <span class="chip" id="meta-publish" data-page-node-id="l3wUwQzPPCl0gbVEfHFCzp">最后发布：—</span>
+    <span class="chip" id="meta-count" data-page-node-id="upyDrsrOMdpVxgNUPUpaIK">共 0 条</span>
+    <span class="chip yellow" id="meta-week" data-page-node-id="DkLM1H4PDJigdPN42LwUZI">教学周</span>
+    <span class="chip" id="meta-mode" data-page-node-id="RmGBACFbwa5MnffQUcA5gO">只读访客</span>
+  </div>
+
+  <div class="toolbar" id="toolbar" data-page-node-id="RsERFqHOyCP4UQ9AfqPVGU">
+    <label data-page-node-id="lGdeQSjWpZRWe6CgAkXASy"><span id="lb-faculty" data-page-node-id="vCGwASBYMLxDmzAFFJRDrz">学院</span><select id="f-faculty" data-page-node-id="uYCesa2OWiDDgcGm5sRdOn"></select></label>
+    <label data-page-node-id="nwmkCrBFWtLYBEeSQCvnnT"><span id="lb-program" data-page-node-id="sVEe70uFU9b9fT65DQ8EDm">专业</span><select id="f-program" data-page-node-id="n7e4OoW3baZKTDbnWe3JLY"></select></label>
+    <label data-page-node-id="0Kmb5sHg7knHrqHRiEXVOc"><span id="lb-group" data-page-node-id="swAFxBUfBqE10It7Y9Hjl1">班级</span><select id="f-group" data-page-node-id="yLc8d9DnkyXcR2yK5HwZT5"></select></label>
+    <label data-page-node-id="uz4hCVUmbwZdTcZ5JvAImr"><span id="lb-teacher" data-page-node-id="H2xSe6D0QFmGkl8ONaJvZE">教师</span><select id="f-teacher" data-page-node-id="zdFG6f2KfGmqmRgVbUTpnZ"></select></label>
+    <label data-page-node-id="v52P13U3fVQDpTtsxBmvU4"><span id="lb-week" data-page-node-id="WhmtmX1fUjqjl0pGgjaUKu">教学周</span><select id="f-week" data-page-node-id="ro8A6hzD2P61fMorpN8YGT"></select></label>
+    <label data-page-node-id="SXhTZCFVVjnXIO39JeYny2"><span id="lb-date" data-page-node-id="jywA6U6P6Xh2DYRoVZp7Q9">日期</span><input type="date" id="f-date" data-page-node-id="kibNKbH5BaxT2EqnxlV2J4" style=""></label>
+    <label data-page-node-id="8L67JHWdnDFKJwIbNnl3GY"><span id="lb-mode" data-page-node-id="l9w5KHWaDaKAWpmIuv9uiw">授课形式</span><select id="f-mode" data-page-node-id="lIYOqWSLGFRjvydkeowUyP"></select></label>
+    <label data-page-node-id="veoWyoXgNMrIjb3APphjAC"><span id="lb-subgroup" data-page-node-id="8v0S3qyHOEcYGuEveBor25">分组</span><select id="f-subgroup" data-page-node-id="a7Dj874F6iXQTegnW6P3FR"></select></label>
+    <input type="text" id="f-keyword" placeholder="搜索课程 / 教师 / 教室…" data-page-node-id="myk7jDAcK94te1gADaBnVs">
+    <label class="check" data-page-node-id="JkgQgaBU3Y6eYRHfSKHbeW"><input type="checkbox" id="f-onlymine" data-page-node-id="yTFNIPExH4qqc1fnyQI3He"><span id="lb-onlymine" data-page-node-id="HEZCFpINmypt075JpDeKCe">只看我的课表</span></label>
+    <button class="ghost-btn" id="btn-reset" data-page-node-id="rTwS7F0GZ8YbxtZ0HZBr65">清除筛选</button>
+    <button class="ghost-btn" id="btn-save-filters" data-page-node-id="Wknb062Bpi6nO1kLTHEP9q">记住筛选</button>
+    <button class="ghost-btn" id="btn-export" data-page-node-id="duVXo1L6egT6thciIGoGCc">导出 CSV</button>
+    <button class="ghost-btn" id="btn-print" data-page-node-id="DEmueVNh6dqIPdo2kBFvsI">打印 / 存为 PDF</button>
+  </div>
+
+  <div class="admin-bar hidden" id="admin-bar" data-page-node-id="BMDkiEJk6fiWjQDF88uapZ">
+    <span class="label" id="admin-label" data-page-node-id="loSOS3csJxL64ECb99ysXg">管理后台</span>
+    <button class="ghost-btn yellow-btn" id="btn-upload" data-page-node-id="O8UaEembhHUQ0rofg9Ja2Q">上传 Word</button>
+    <button class="ghost-btn" id="btn-courses" data-page-node-id="blf3Z0qhsvT9VqiTZbbZ5v">课程维护</button>
+    <button class="ghost-btn" id="btn-translations" data-page-node-id="A66vxlosQF3tJWM18wtsZI">中文译名</button>
+    <button class="ghost-btn" id="btn-uploads" data-page-node-id="BwKJqOZCsFQ63OL1nHpDJI">上传记录</button>
+    <button class="ghost-btn" id="btn-changelog" data-page-node-id="jT03ZYDKNpE0jLCX1SRtRT">修改记录</button>
+    <button class="ghost-btn" id="btn-migrate" data-page-node-id="XKshc3waW50QeCt3zdJmFZ">导入本地 data.js</button>
+  </div>
+
+  <div class="view-head" data-page-node-id="uRlB4fGbLFlIbUp7M1Q7rY">
+    <button class="ghost-btn" id="btn-prev" data-page-node-id="70R69ZjcU5ZfPo2qtTYxTe">上一周</button>
+    <button class="ghost-btn" id="btn-next" data-page-node-id="0MEl3btcfLsLq6SFBvMbgU">下一周</button>
+    <input type="date" id="view-date" class="ghost-btn" style="padding:6px 10px" data-page-node-id="tpoLA4POUWWI4BjNsC5buK">
+    <h2 id="view-title" data-page-node-id="BkNlU5m3aW9GgmNTC9fl4E">—</h2>
+    <span class="sub" id="view-sub" data-page-node-id="Yy8LkvJiyqMm33jWaa41q9"></span>
+  </div>
+
+  <div id="view-container" data-page-node-id="9IjHQxrHqNxMdYEJh7AeRZ"></div>
+</div>
+
+<div class="overlay" id="dlg-auth" data-page-node-id="UGkXdvtCrxN55o4TyEcLMz">
+  <div class="dialog" data-page-node-id="miPdTQVj0o7OT7lX0UAaB0">
+    <h2 id="auth-title" data-page-node-id="HAhscUVawsvWfmLd5AQQwq">登录系统</h2>
+    <div class="form-row" data-page-node-id="Ofxv18SNr8yVw270g8pIqT"><label id="lb-auth-email" data-page-node-id="g139MywnqvQL4AvSxFZbwa">邮箱</label><input type="email" id="auth-email" autocomplete="username" data-page-node-id="EOw45lPHwTENg8Ifi7WGAP"></div>
+    <div class="form-row" data-page-node-id="dW7tJzk7jBAbRARjvtMiCY"><label id="lb-auth-password" data-page-node-id="FjlinCIEtRDchEFSGM8Vhe">密码（至少 6 位）</label><input type="password" id="auth-password" autocomplete="current-password" data-page-node-id="hXtYWAWaKvRTgcDIJvYgeE"></div>
+    <div class="form-row hidden" id="auth-name-row" data-page-node-id="RVj8q7h9Y159NqtYe3kbUI"><label id="lb-auth-name" data-page-node-id="xus7VrqKxzXG4dVz95mMct">姓名</label><input type="text" id="auth-name" data-page-node-id="5B8ZNXvJ3VlTbz5tukmaAH"></div>
+    <div class="form-row hidden" id="auth-role-row" data-page-node-id="ZqPDpw5TQQQ90anEjmTLpb"><label id="lb-auth-role" data-page-node-id="AEMIJhPUBxj7FPGJB3lItr">身份</label><select id="auth-role" data-page-node-id="fKWKVj41KEx7vGISpv6PPc"><option value="student" data-page-node-id="iGLCbJkAlC4y13wFpVjDZC">学生</option><option value="teacher" data-page-node-id="TxRoW1asFQDJ66IfKHGK1d">教师</option></select></div>
+    <div class="err" id="auth-error" data-page-node-id="YwCotk6DYlCUn7QWXYIIM5"></div>
+    <button class="primary-btn" id="auth-submit" style="width:100%" data-page-node-id="5QXcyLEW1NKUlDHp6yyyci">登 录</button>
+    <div class="actions" data-page-node-id="QOUDGeQGON0mnTDt4VXuQF">
+      <button class="link-btn" id="auth-toggle" data-page-node-id="2Q4yoEUBZ6tfs0NkDtIKom">没有账号？点击注册</button>
+      <button class="link-btn" id="auth-forgot" data-page-node-id="EBqrNPtsKiIxa66JToOEi3">忘记密码？发送重置邮件</button>
+      <button class="link-btn" id="auth-close" style="margin-left:auto" data-page-node-id="HkWA2SU3efFE521qHv6D0k">关闭</button>
+    </div>
+    <p class="hint" id="auth-hint" data-page-node-id="UeuTXe0AFHbXKb6uOxC4pE"></p>
+  </div>
+</div>
+
+<div class="overlay" id="dlg-profile" data-page-node-id="UWBYC9AunvBnKINBgdw7d0">
+  <div class="dialog" data-page-node-id="xTqgeKkQHaYRLISuCrrm5X">
+    <h2 id="profile-title" data-page-node-id="aQY8ebSCqYoURNnNfkjCOK">个人设置</h2>
+    <div class="grid2" data-page-node-id="2ur80sZ4lnkskFpg6E3kjA">
+      <div class="form-row" data-page-node-id="3ZZHtRzpFtth0n2vXOGdcZ"><label id="lb-p-name" data-page-node-id="DIQITqNuaXOjOw5UqVuvhV">姓名</label><input type="text" id="p-name" data-page-node-id="oDFLY9z1osCHdHxxL5aSP8"></div>
+      <div class="form-row" data-page-node-id="FdHsKiPYpS5OpJU1cOx0XQ"><label id="lb-p-lang" data-page-node-id="Rs6A8V3LW6xWyNMFY5ceHf">界面语言</label><select id="p-lang" data-page-node-id="wQGDUdBC0rKNzxTweKWPdW"><option value="zh" data-page-node-id="dwUIrLg4Beze6OZbHRUsbE">简体中文</option><option value="ru" data-page-node-id="r3gYVwBcSXjOAIwr3jSVsC">Русский</option></select></div>
+      <div class="form-row" data-page-node-id="upITLAGTg0G1f5xlQ4uwoi"><label id="lb-p-faculty" data-page-node-id="WQipzO3NVjyAsDUqgZ6rC0">学院 / 教学单位</label><input type="text" id="p-faculty" data-page-node-id="KBbjKiIEN4ZpkXdGCD8OBQ"></div>
+      <div class="form-row" data-page-node-id="vCUcZBzpK41YmTwCcjtbmM"><label id="lb-p-program" data-page-node-id="zv3JXZDjrhKUroGngV0vWp">专业 / 教育项目</label><input type="text" id="p-program" data-page-node-id="9qmLdJFyqhZLCVqVfxzRIr"></div>
+      <div class="form-row" data-page-node-id="kA9r6o4uOSWTNIZ2lLlPn2"><label id="lb-p-group" data-page-node-id="6PP8rinSQCgXCSxC24b0ID">默认班级</label><select id="p-group" data-page-node-id="twtu7TzbBv2pTEkjS7sqRX"></select></div>
+      <div class="form-row" data-page-node-id="gW68fsUxBGLGSadOkBUyxD"><label id="lb-p-teacher" data-page-node-id="P2hzjDN9z2SGO1Y6v1WH2W">默认教师姓名</label><select id="p-teacher" data-page-node-id="KTnBHGzABwKvi0zrmjf2K9"></select></div>
+      <div class="form-row" data-page-node-id="1MDbuP1Xm4isemBsstkM7L"><label id="lb-p-defaultby" data-page-node-id="kcAFJb0DWdDgkzmPGx1zlt">默认课表按…生成</label><select id="p-defaultby" data-page-node-id="flElvjoJxU9JoZVVbkozXd"><option value="group" data-page-node-id="unKCUgFbaVP3WGp3J1zi8W">按班级</option><option value="teacher" data-page-node-id="uSRCEbFZMfD9a4jjqHEIlb">按教师</option></select></div>
+    </div>
+    <p class="hint" id="p-hint" data-page-node-id="F8uHhNSjcbly9O2hF5M0hT"></p>
+    <div class="actions" data-page-node-id="4yDmISh6HyZfqChdeocAYS">
+      <button class="primary-btn" id="p-save" data-page-node-id="dVXmuV0oQ779u0CsTUwPQK">保存</button>
+      <button class="ghost-btn" id="p-close" data-page-node-id="vK7xxBUTj0DRsjyH3RE5G1">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="dlg-detail" data-page-node-id="XMTQ4ClUdD7HuWe47kqkpK">
+  <div class="dialog wide" data-page-node-id="jDl9BZ0OQwzJHbmGHQ8tEh">
+    <h2 id="detail-title" data-page-node-id="jbx5CBk3GNP5GtdyielBuE">课程详情</h2>
+    <div id="detail-body" data-page-node-id="7rFKFloYoDbn7ucJztbaZK"></div>
+    <div class="actions" data-page-node-id="JOly0xLeg7WhDT7eckTp5m"><button class="ghost-btn" id="detail-close" data-page-node-id="nGsRUsthEBIXRzMCE7Rl7c">关闭</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="dlg-edit" data-page-node-id="zCDjz3dR3sfiwWAA6GsMyZ">
+  <div class="dialog" data-page-node-id="4oMC7aHvHn7DH1LzaFaHUi">
+    <h2 id="edit-title" data-page-node-id="S1bSNsXJbBv0lAp2seTvos">编辑课程</h2>
+    <input type="hidden" id="e-id" data-page-node-id="HY2ecEXkSQuYyDxbBiaXwf">
+    <div class="grid2" data-page-node-id="7yYTPIl1Ch5d7rEIhvIFi8">
+      <div class="form-row" data-page-node-id="QDtwzriffVNaLglOEBNRV5"><label id="lb-e-course" data-page-node-id="3a8liR6hkoCu6hvhGR4CFI">课程名称</label><input type="text" id="e-course" data-page-node-id="vFlR4kX041q3EJx5tdjpA9"></div>
+      <div class="form-row" data-page-node-id="PxZ3IAAyyJCjMwZl6tzp7M"><label id="lb-e-date" data-page-node-id="SWzx77PJLRERLvl551q43G">日期</label><input type="date" id="e-date" data-page-node-id="EKN74Smb5SrAb5cQZC2eOL"></div>
+      <div class="form-row" data-page-node-id="68L9et4S3uEiystZzWFwbN"><label id="lb-e-time" data-page-node-id="KSLoncBs0fEZ6nluyFZhQp">时间</label><input type="text" id="e-time" placeholder="18:30-21:30" data-page-node-id="FJeCr6PhILjKxkGJrwAYMA"></div>
+      <div class="form-row" data-page-node-id="Lfk7zVXPfGkIJz0o2yeRB7"><label id="lb-e-teacher" data-page-node-id="jzvZBd5CfLQVCF1mTbDA5q">教师</label><input type="text" id="e-teacher" data-page-node-id="HDgBmJHlzSvab9oVSTzSy3"></div>
+      <div class="form-row" data-page-node-id="FWzUkno6sAbC0G8dsm2SL7"><label id="lb-e-room" data-page-node-id="SE7FdauGX5UoD1dezve5Fs">教室</label><input type="text" id="e-room" data-page-node-id="k9kdTLphMyPhAx4WHOW9yR"></div>
+      <div class="form-row" data-page-node-id="atveXs8q4Upn5vmOPipEi1"><label id="lb-e-mode" data-page-node-id="a1evNdpPwAmNq8pwve6hnG">授课形式</label><input type="text" id="e-mode" data-page-node-id="pkVWAmHZ6WgVTy3Y3Y5SJM"></div>
+      <div class="form-row" data-page-node-id="EipCZZ3169WjHl15kyLbLl"><label id="lb-e-group" data-page-node-id="FkinUbVLbBGLkWHbzJ4NCd">班级</label><input type="text" id="e-group" data-page-node-id="oLD3xrS2fFBAtPcbUNfDFr"></div>
+      <div class="form-row" data-page-node-id="PKOIGVDvKnL0PLmAGAopI3"><label id="lb-e-subgroup" data-page-node-id="ML5XjsY6DXmna7povnjaau">分组</label><input type="text" id="e-subgroup" data-page-node-id="PJu2eZoIL8pKpBOW1Njhtb"></div>
+      <div class="form-row" data-page-node-id="CHLOmTfX2jPZjhIVKcD0s6"><label id="lb-e-status" data-page-node-id="2gCkvGUtBXX9mXwKzDzntP">课程状态</label><select id="e-status" data-page-node-id="WYaT7XRJep9yXTWGfhVg77"><option value="normal" data-page-node-id="FHBxsm3UwaxPEKQirP5GJH">正常</option><option value="cancelled" data-page-node-id="3QbwysdRhZS80izMw8xhAN">取消</option><option value="rescheduled" data-page-node-id="KgSdg7WsDtrvHuBmieFgkm">改期</option></select></div>
+      <div class="form-row" id="e-type-row" data-page-node-id="oS0DKaf8sOvFmTDLh4EaQL"><label id="lb-e-type" data-page-node-id="ctVwO8qhoZSdtgZwfB7nwK">类型</label><select id="e-type" data-page-node-id="WVvItPfyBjw0zU6PBHtyun"><option value="personal" data-page-node-id="F07AZ9qAZKZHpuhm7bVge0">个人安排 / 会议</option><option value="exam" data-page-node-id="otZ3h5vWHC8nMSOJVyl9Yn">考试</option><option value="homework" data-page-node-id="EjmrUNOKhadu8dgrwOvRFQ">作业</option></select></div>
+    </div>
+    <div class="err" id="e-error" data-page-node-id="isvsVvwn0oVCTr7RSvZAC6"></div>
+    <div class="actions" data-page-node-id="K2yvLIf1UKJH3KIddhKZg4">
+      <button class="primary-btn" id="e-save" data-page-node-id="aEGvLesSEWVaECU6gopAuY">保存</button>
+      <button class="ghost-btn" id="e-close" data-page-node-id="v5rfd8lJ6357AuPuF2odv3">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="dlg-admin" data-page-node-id="c2QHyPXewimtASVkfDabL4">
+  <div class="dialog wide" data-page-node-id="CECJpB90OmO5PnzyYgiPCq">
+    <h2 id="admin-title" data-page-node-id="cRCYKgD4f6dBiJvF8KIlEh">管理后台</h2>
+    <div id="admin-body" data-page-node-id="FqSl6o7u0zBm7RQ6WfCM5q"></div>
+    <div class="actions" data-page-node-id="xpFaCC8KZoY1XdwpKWnd97"><button class="ghost-btn" id="admin-close" data-page-node-id="J47vhJssiDJptbyO5YlAFU">关闭</button></div>
+  </div>
+</div>
+
+<div id="toast" data-page-node-id="UkiQYy8LUmxt1wXDtokRi6"></div>
+<div id="loading" data-page-node-id="qNliR6qXMhYWdEQtiZN0Zu"><div class="spinner" data-page-node-id="6BRQRXdcC1NmZUnqxMYMw9"></div><div class="txt" id="loading-text" data-page-node-id="ICQ4MDgr653jqsZGreA8Mb">正在加载…</div></div>
+
+<script src="i18n.js"></script>
+<script src="docx.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+
+
+</body></html>
