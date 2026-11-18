@@ -217,39 +217,40 @@
   }
   // 个人视图：左侧「个人课程表」页签或勾选了「只看我的课表」
   function personalView() { return S.space === 'mine' || !!S.filters.onlyMine; }
-  // 备注是用户私有内容，只在个人视图露出；公共视图仅展示真正改过字段的标记
-  function isModified(e) {
-    if (personalView()) return !!(e._edited || e._noteText);
-    return !!e._edited;
-  }
+  // 备注/覆盖只在个人视图生效；公共视图始终是官方数据，个人删除不会影响公共课表
+  function isModified(e) { return !!(e._edited || e._noteText); }
 
   function mergedEntries() {
     const out = [];
+    const mine = personalView();
     for (const e of S.entries) {
       if (!e._active) continue;
       const ov = S.overrides[e.id];
-      if (ov && ov.deleted) continue;
       const m = Object.assign({}, e);
-      if (ov && ov.patch) Object.assign(m, ov.patch);
+      // 个人视图才应用覆盖；公共视图直接展示官方版本（含被个人隐藏的课程）
+      if (mine && ov && ov.deleted) continue;
+      if (mine && ov && ov.patch) Object.assign(m, ov.patch);
       m._zh = zhOf(m);
-      m._saved = !!(ov && !m._event);
-      m._personal = m._saved;          // 兼容旧字段名：仅表示课程在个人课表中
-      m._edited = m._saved && patchHasChanges(ov.patch, e);
-      m._noteText = noteTextOf(e.id);
-      m._officialUpdated = !!(ov && e._publishedAt && ov.createdAt && ov.createdAt < e._publishedAt);
+      m._saved = !!ov;                 // 仅用于「保存课表」去重，不控制显示
+      m._personal = mine && !!ov && !ov.deleted;
+      m._edited = mine && !!ov && !ov.deleted && patchHasChanges(ov.patch, e);
+      m._noteText = mine ? noteTextOf(e.id) : '';
+      m._officialUpdated = mine && !!(ov && e._publishedAt && ov.createdAt && ov.createdAt < e._publishedAt);
       m._start = timeStart(m['时间']);
       m._week = weekStart(m['日期']);
       m._wd = WD_KEYS[m['星期']] || weekdayOf(m['日期']);
       out.push(m);
     }
-    for (const ev of S.events) {
-      out.push(normalizeEntry({
-        '日期': ev.date, '星期': '', '年级': '', '班号': '', '专业': '',
-        'КНР': '', '授课形式': '', '小组': '全部', '班级': ev.group || '',
-        '课程': ev.title, '教师': '', '教室': ev.room || '', '时间': ev.time,
-        '来源文件': '', _event: true, _type: ev.type || 'personal',
-        _status: 'normal', _personal: true, _zh: ''
-      }, ev.id));
+    if (mine) {
+      for (const ev of S.events) {
+        out.push(normalizeEntry({
+          '日期': ev.date, '星期': '', '年级': '', '班号': '', '专业': '',
+          'КНР': '', '授课形式': '', '小组': '全部', '班级': ev.group || '',
+          '课程': ev.title, '教师': '', '教室': ev.room || '', '时间': ev.time,
+          '来源文件': '', _event: true, _type: ev.type || 'personal',
+          _status: 'normal', _personal: true, _zh: ''
+        }, ev.id));
+      }
     }
     return out;
   }
@@ -442,6 +443,7 @@
       await loadUserData();
       await resolveAdmin(S.user);
       initFilterOptions();
+      S.anchor = snapToDataDate(S.anchor);
       updateChrome(); render();
     } catch (e) {
       console.error('云端读取失败：', e);
@@ -461,6 +463,7 @@
     S.courseZh = Object.assign({}, readStore('cm.localZh', {}));
     buildDict();
     initFilterOptions();
+    S.anchor = snapToDataDate(S.anchor);
     showOffline(!!showBanner, reason);
     updateChrome(); render();
   }
@@ -716,6 +719,27 @@
     return all;
   }
 
+  // 导航只在「有数据的日期/周」之间移动：官方数据 + 个人视图里的个人日程/改期
+  function dataDates() {
+    const dates = S.entries.filter(e => e._active !== false).map(e => e['日期']);
+    if (personalView()) {
+      S.events.forEach(ev => dates.push(ev.date));
+      Object.values(S.overrides).forEach(o => {
+        if (o.deleted) return;
+        const base = S.entries.find(e => e.id === o.entryId);
+        dates.push((o.patch && o.patch['日期']) || (base && base['日期']));
+      });
+    }
+    return uniq(dates).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+  }
+  function dataWeeks() { return uniq(dataDates().map(weekStart)).sort(); }
+  // 日期选择器落到空日期时，吸附到最近的有数据日期
+  function snapToDataDate(s) {
+    const dates = dataDates();
+    if (!dates.length || dates.indexOf(s) >= 0) return s;
+    return dates.find(d => d > s) || dates[dates.length - 1];
+  }
+
   function tagHtml(text, cls) { return '<span class="tag ' + (cls || '') + '">' + esc(text) + '</span>'; }
   // Word 原文里小组标记常混在课程名中，展示时去掉（数据本身保持不变，与 convert.py 一致）
   function displayCourse(e) {
@@ -827,6 +851,11 @@
     else title = T('view.count', { n: list.length });
     $('view-title').textContent = title;
     $('view-sub').textContent = T('view.count', { n: list.length }) + (S.localMode ? ' · data.js' : '');
+    const allDates = dataDates();
+    if (allDates.length) {
+      $('view-date').min = allDates[0];
+      $('view-date').max = allDates[allDates.length - 1];
+    }
     $('view-date').value = S.anchor;
     $('meta-week').textContent = weekLabel(S.anchor);
 
@@ -1492,7 +1521,9 @@
   async function hidePersonal(id) {
     if (!S.user || !S.cloudOK) return needLogin();
     const key = hashId(S.user.uid + '|' + id);
-    const rec = { uid: S.user.uid, entryId: id, patch: {}, deleted: true, createdAt: nowIso() };
+    const old = S.overrides[id] || {};
+    // 保留原 patch：只是从「我的课表」隐藏，不丢掉之前的个人修改
+    const rec = { uid: S.user.uid, entryId: id, patch: old.patch || {}, deleted: true, createdAt: nowIso() };
     await FB.setDoc(FB.doc(db, 'userScheduleOverrides', key), rec);
     S.overrides[id] = { id: key, ...rec };
     toast(T('edit.deleted'), 'ok'); render();
@@ -1501,10 +1532,14 @@
   async function restoreOfficial(id) {
     if (!S.user || !S.cloudOK) return needLogin();
     const ov = S.overrides[id];
-    if (ov) {
-      await FB.deleteDoc(FB.doc(db, 'userScheduleOverrides', ov.id));
-      delete S.overrides[id];
-    }
+    const key = ov ? ov.id : hashId(S.user.uid + '|' + id);
+    // 恢复 = 取消隐藏并放回个人课表，而不是删除覆盖记录让课程只留在公共课表
+    const rec = {
+      uid: S.user.uid, entryId: id,
+      patch: (ov && ov.patch) || {}, deleted: false, createdAt: nowIso()
+    };
+    await FB.setDoc(FB.doc(db, 'userScheduleOverrides', key), rec);
+    S.overrides[id] = { id: key, ...rec };
     toast(T('edit.restored'), 'ok'); render();
   }
 
@@ -1873,7 +1908,8 @@
     $('btn-next').onclick = () => shiftAnchor(1);
     $('view-date').onchange = e => {
       if (!e.target.value) return;
-      S.anchor = e.target.value;
+      // 手动选到空日期时吸附到最近的有数据日期，避免展示无信息的周/月
+      S.anchor = snapToDataDate(e.target.value);
       S.filters.date = '';
       render();
     };
@@ -1951,7 +1987,23 @@
   }
 
   function shiftAnchor(dir) {
-    S.anchor = addDays(S.anchor, dir * 7);
+    const dates = dataDates();
+    if (!dates.length) { S.anchor = addDays(S.anchor, dir * 7); render(); return; }
+    if (S.view === 'day') {
+      // 日视图：在有数据的日期之间跳，末尾循环到开头
+      const target = dir > 0
+        ? (dates.find(d => d > S.anchor) || dates[0])
+        : (dates.slice().reverse().find(d => d < S.anchor) || dates[dates.length - 1]);
+      S.anchor = target;
+    } else {
+      // 周/明细视图：只在有数据的教学周之间跳，末尾循环到开头
+      const weeks = dataWeeks();
+      const curWeek = weekStart(S.anchor);
+      const targetWeek = dir > 0
+        ? (weeks.find(w => w > curWeek) || weeks[0])
+        : (weeks.slice().reverse().find(w => w < curWeek) || weeks[weeks.length - 1]);
+      S.anchor = dates.find(d => weekStart(d) === targetWeek) || targetWeek;
+    }
     render();
   }
 
