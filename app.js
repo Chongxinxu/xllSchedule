@@ -203,6 +203,26 @@
   }
   function statusLabel(v) { return T('state.' + (v || 'normal')); }
 
+  // 「保存到个人课表」只是把课程收进我的课表（空 patch），不等于「个人修改」。
+  // 只有真的覆盖了课程字段（课程名/时间/教师/教室等）才算修改过。
+  function patchHasChanges(patch, base) {
+    if (!patch || typeof patch !== 'object') return false;
+    return Object.keys(patch).some(k =>
+      String(patch[k] == null ? '' : patch[k]) !== String(base[k] == null ? '' : base[k]));
+  }
+  function noteTextOf(id) {
+    const n = S.notes[id];
+    const text = n && n.text ? String(n.text).trim() : '';
+    return text;
+  }
+  // 个人视图：左侧「个人课程表」页签或勾选了「只看我的课表」
+  function personalView() { return S.space === 'mine' || !!S.filters.onlyMine; }
+  // 备注是用户私有内容，只在个人视图露出；公共视图仅展示真正改过字段的标记
+  function isModified(e) {
+    if (personalView()) return !!(e._edited || e._noteText);
+    return !!e._edited;
+  }
+
   function mergedEntries() {
     const out = [];
     for (const e of S.entries) {
@@ -212,7 +232,10 @@
       const m = Object.assign({}, e);
       if (ov && ov.patch) Object.assign(m, ov.patch);
       m._zh = zhOf(m);
-      m._personal = !!(ov && !m._event);
+      m._saved = !!(ov && !m._event);
+      m._personal = m._saved;          // 兼容旧字段名：仅表示课程在个人课表中
+      m._edited = m._saved && patchHasChanges(ov.patch, e);
+      m._noteText = noteTextOf(e.id);
       m._officialUpdated = !!(ov && e._publishedAt && ov.createdAt && ov.createdAt < e._publishedAt);
       m._start = timeStart(m['时间']);
       m._week = weekStart(m['日期']);
@@ -696,18 +719,19 @@
   }
 
   function cardHtml(e, compact) {
-    if (e['课程'] === 'Нет занятий' && !e._personal) {
+    if (e['课程'] === 'Нет занятий' && !e._saved) {
       return '<div class="no-class" data-id="' + esc(e.id) + '">' + esc(T('card.noClass')) + '</div>';
     }
     const cls = ['card'];
-    if (e._personal && !e._event) cls.push('personal');
+    // 仅真正改过（或有备注）的课程用黄色强调；单纯「保存课表」保持官方样式
+    if (e._saved && !e._event && isModified(e)) cls.push('personal');
     if (e._event) cls.push('event');
     if (e._status === 'cancelled') cls.push('cancelled');
     if (S.conflictIds.has(e.id)) cls.push('conflict');
     if (S.notes[e.id] && S.notes[e.id].star) cls.push('starred');
     const tags = [];
     if (e['教室'] === '网课') tags.push(tagHtml(T('common.online'), 'blue'));
-    if (e._personal) tags.push(tagHtml(T('common.personal'), 'yellow'));
+    if (isModified(e)) tags.push(tagHtml(T('common.personal'), 'yellow'));
     if (e._officialUpdated) tags.push(tagHtml(T('common.updated'), 'red'));
     if (e._status && e._status !== 'normal') tags.push(tagHtml(statusLabel(e._status), 'red'));
     if (S.conflictIds.has(e.id)) tags.push(tagHtml(T('view.conflict'), 'red'));
@@ -720,12 +744,17 @@
     const zh = e._zh && e._zh !== e['课程'] ? '<span class="zh"> · ' + esc(e._zh) + '</span>' : '';
     const line = [e['教师'], e['教室'] === '网课' ? '' : e['教室'], modeLabel(e['授课形式'])]
       .filter(Boolean).join(' · ');
-    return '<div class="' + cls.join(' ') + '" data-id="' + esc(e.id) + '">' +
+    let html = '<div class="' + cls.join(' ') + '" data-id="' + esc(e.id) + '">' +
       '<div class="time">' + esc(e['时间'] || '—') + '</div>' +
       '<div class="name">' + esc(displayCourse(e)) + zh + '</div>' +
       (compact ? '' : '<div class="line">' + esc(line || e['班级'] || '') + '</div>') +
-      (tags.length ? '<div class="tags">' + tags.join('') + '</div>' : '') +
-      '</div>';
+      (tags.length ? '<div class="tags">' + tags.join('') + '</div>' : '');
+    // 备注只在个人课程表里展示，直接贴在课程卡片上（与截图位置一致）
+    if (personalView() && e._noteText) {
+      html += '<div class="card-note" title="' + esc(e._noteText) + '"><b>' + esc(T('card.note')) + '</b>' +
+        esc(e._noteText) + '</div>';
+    }
+    return html + '</div>';
   }
 
   function emptyHtml(msg) {
@@ -772,7 +801,8 @@
         '<td><strong>' + esc(displayCourse(e)) + '</strong>' + (e._zh ? '<div class="line">' + esc(e._zh) + '</div>' : '') + '</td>' +
         '<td>' + esc(e['教师']) + '</td><td>' + esc(e['教室']) + '</td>' +
         '<td>' + esc(modeLabel(e['授课形式'])) + '</td><td>' + esc(statusLabel(e._status)) + '</td>' +
-        '<td>' + (e._personal ? tagHtml(T('common.personal'), 'yellow') : '') +
+        '<td>' + (e._event ? tagHtml(T('common.personalEvent'), 'purple')
+          : (isModified(e) ? tagHtml(T('common.personal'), 'yellow') : '')) +
         (e._officialUpdated ? tagHtml(T('common.updated'), 'red') : '') + '</td>' +
         '<td>' + (S.isAdmin && S.cloudOK && !e._event
           ? '<button class="link-btn" data-act="edit" data-id="' + esc(e.id) + '">' + esc(T('common.edit')) + '</button>' +
@@ -852,10 +882,11 @@
       return { h, nl, sl, tl };
     }
     function paintCard(ctx, e, x, y, w, m) {
-      ctx.fillStyle = e._personal ? C.yellowSoft : C.surface;
+      const marked = isModified(e) && !e._event;
+      ctx.fillStyle = marked ? C.yellowSoft : C.surface;
       rr(ctx, x, y, w, m.h, 8); ctx.fill();
       ctx.strokeStyle = e._status === 'cancelled' ? '#e5b7b2' : C.line; ctx.lineWidth = 1; ctx.stroke();
-      ctx.fillStyle = e._personal ? '#e0a800' : C.blue;
+      ctx.fillStyle = marked ? '#e0a800' : C.blue;
       rr(ctx, x, y + 8, 3, Math.max(4, m.h - 16), 1.5); ctx.fill();
       let ty = y + 26;
       ctx.fillStyle = C.text; ctx.font = '600 14px ' + FONT;
@@ -865,7 +896,7 @@
         m.sl.forEach(l => { ctx.fillText(l, x + 11, ty); ty += 16; });
       }
       if (m.tl.length) {
-        ty += 2; ctx.fillStyle = e._personal ? '#8a6d00' : C.blue; ctx.font = '11px ' + FONT;
+        ty += 2; ctx.fillStyle = marked ? '#8a6d00' : C.blue; ctx.font = '11px ' + FONT;
         m.tl.forEach(l => { ctx.fillText(l, x + 11, ty); ty += 14; });
       }
     }
@@ -1106,21 +1137,23 @@
       kv('detail.status', statusLabel(e._status)) + '</div>';
 
     html += '<div class="pill-list" style="margin-bottom:12px">' +
-      (e._personal ? tagHtml(T('common.personal'), 'yellow') : tagHtml(T('common.official'), 'blue')) +
+      (isModified(e) ? tagHtml(T('common.personal'), 'yellow') : tagHtml(T('common.official'), 'blue')) +
       (e._officialUpdated ? tagHtml(T('common.updated'), 'red') : '') +
       (S.conflictIds.has(id) ? tagHtml(T('view.conflict'), 'red') : '') + '</div>';
 
-    html += '<div class="section-title">' + esc(T('detail.notes')) + '</div>' +
-      '<textarea id="d-note" placeholder="' + esc(T('detail.notePlaceholder')) + '">' + esc(note ? note.text : '') + '</textarea>' +
-      '<div class="actions">' +
-      '<button class="primary-btn" data-act="note-save">' + esc(T('detail.saveNote')) + '</button>' +
-      '<button class="ghost-btn" data-act="note-del">' + esc(T('detail.deleteNote')) + '</button>' +
-      '</div>';
+    // 备注是用户私有内容：只在个人课程表里出现，公共课表的详情不显示
+    if (personalView()) {
+      html += '<div class="section-title">' + esc(T('detail.notes')) + '</div>' +
+        '<textarea id="d-note" placeholder="' + esc(T('detail.notePlaceholder')) + '">' + esc(note ? note.text : '') + '</textarea>' +
+        '<div class="actions">' +
+        '<button class="primary-btn" data-act="note-save">' + esc(T('detail.saveNote')) + '</button>' +
+        '<button class="ghost-btn" data-act="note-del">' + esc(T('detail.deleteNote')) + '</button>' +
+        '</div>';
+    }
 
     html += '<div class="section-title">' + esc(T('common.personal')) + '</div><div class="actions">' +
       '<button class="ghost-btn" data-act="edit-personal">' + esc(T('detail.editPersonal')) + '</button>' +
       '<button class="ghost-btn" data-act="hide-personal">' + esc(T('detail.deletePersonal')) + '</button>' +
-      '<button class="ghost-btn" data-act="add-event">' + esc(T('detail.addEvent')) + '</button>' +
       '<button class="ghost-btn" data-act="report-error">' + esc(T('detail.reportError')) + '</button>' +
       '</div>';
 
@@ -1476,7 +1509,7 @@
   async function saveScheduleToMine() {
     if (!S.user) return needLogin();
     if (!S.cloudOK) { toast(T('admin.offline'), 'error'); return; }
-    const list = rangeEntries().filter(e => !e._event && !e._personal);
+    const list = rangeEntries().filter(e => !e._event && !e._saved);
     if (!list.length) { toast(T('saveSchedule.empty'), 'error'); return; }
     // 已存在的个人覆盖不重复写入
     const items = list.filter(e => !S.overrides[e.id]);
@@ -1941,10 +1974,6 @@
         // 从恢复列表点按时，刷新列表；从详情点按时关闭详情
         if (act === 'restore-pick') openRestore();
         else hideDlg('dlg-detail');
-        break;
-      case 'add-event':
-        if (!S.user || !S.cloudOK) return needLogin();
-        hideDlg('dlg-detail'); openEdit({ mode: 'event', id: '', date: S.anchor });
         break;
       case 'report-error': await reportError(id); break;
       case 'pick-files': { const f = $('admin-files'); if (f) f.click(); break; }

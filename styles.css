@@ -201,6 +201,9 @@ header.topbar {
 .card .name .zh { color: var(--muted); font-weight: 400; font-size: 12px; }
 .card .line { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+/* 个人课程表卡片上的备注：仅在个人视图渲染 */
+.card-note { margin-top: 6px; padding: 5px 7px; border-radius: 5px; background: #fffbe6; border-left: 2px solid var(--yellow-dark); font-size: 11px; line-height: 1.45; color: #6b5200; white-space: pre-wrap; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.card-note b { color: #8a6d00; font-weight: 700; }
 .tag { font-size: 10px; padding: 1px 6px; border-radius: 10px; background: var(--surface-3); color: var(--muted); white-space: nowrap; }
 .tag.yellow { background: var(--yellow); color: var(--ink); }
 .tag.red { background: var(--red-soft); color: var(--red); }
@@ -338,7 +341,8 @@ table.grid-table tr.past td { opacity: .5; }
   .card .line { order: 2; }
   .card .tags { order: 3; }
   .card .time { order: 4; font-size: 11px; }
-  .day-list .row-time { order: 5; }
+  .card-note { order: 5; }
+  .day-list .row-time { order: 6; }
 }
 
 @media print {
