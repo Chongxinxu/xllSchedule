@@ -113,14 +113,16 @@
     <label><span id="lb-teacher">教师</span><select id="f-teacher"></select></label>
     <label><span id="lb-week">教学周</span><select id="f-week"></select></label>
     <label><span id="lb-subgroup">分组</span><select id="f-subgroup"></select></label>
-    <input type="text" id="f-keyword" placeholder="搜索课程 / 教师 / 教室…">
-    <label class="check"><input type="checkbox" id="f-onlymine"><span id="lb-onlymine">只看我的课表</span></label>
-    <button class="ghost-btn" id="btn-reset">清除筛选</button>
-    <button class="ghost-btn hidden" id="btn-save-filters">记住筛选</button>
-    <button class="ghost-btn yellow-btn" id="btn-save-schedule">保存课表</button>
-    <button class="ghost-btn" id="btn-restore">恢复已删课程</button>
-    <button class="ghost-btn" id="btn-export">导出图片</button>
-    <button class="ghost-btn hidden" id="btn-print">打印 / 存为 PDF</button>
+    <div class="toolbar-actions">
+      <input type="text" id="f-keyword" placeholder="搜索课程 / 教师 / 教室…">
+      <label class="check"><input type="checkbox" id="f-onlymine"><span id="lb-onlymine">只看我的课表</span></label>
+      <button class="ghost-btn" id="btn-reset">清除筛选</button>
+      <button class="ghost-btn hidden" id="btn-save-filters">记住筛选</button>
+      <button class="ghost-btn yellow-btn" id="btn-save-schedule">保存课表</button>
+      <button class="ghost-btn" id="btn-restore">恢复已删课程</button>
+      <button class="ghost-btn" id="btn-export">导出图片</button>
+      <button class="ghost-btn hidden" id="btn-print">打印 / 存为 PDF</button>
+    </div>
   </div>
 
   <div class="view-head">
@@ -149,7 +151,6 @@
     <div class="form-row" data-page-node-id="Ofxv18SNr8yVw270g8pIqT"><label id="lb-auth-email" data-page-node-id="g139MywnqvQL4AvSxFZbwa">邮箱</label><input type="email" id="auth-email" autocomplete="username" data-page-node-id="EOw45lPHwTENg8Ifi7WGAP"></div>
     <div class="form-row" data-page-node-id="dW7tJzk7jBAbRARjvtMiCY"><label id="lb-auth-password" data-page-node-id="FjlinCIEtRDchEFSGM8Vhe">密码（至少 6 位）</label><input type="password" id="auth-password" autocomplete="current-password" data-page-node-id="hXtYWAWaKvRTgcDIJvYgeE"></div>
     <div class="form-row hidden" id="auth-name-row" data-page-node-id="RVj8q7h9Y159NqtYe3kbUI"><label id="lb-auth-name" data-page-node-id="xus7VrqKxzXG4dVz95mMct">姓名</label><input type="text" id="auth-name" data-page-node-id="5B8ZNXvJ3VlTbz5tukmaAH"></div>
-    <div class="form-row hidden" id="auth-role-row" data-page-node-id="ZqPDpw5TQQQ90anEjmTLpb"><label id="lb-auth-role" data-page-node-id="AEMIJhPUBxj7FPGJB3lItr">身份</label><select id="auth-role" data-page-node-id="fKWKVj41KEx7vGISpv6PPc"><option value="student" data-page-node-id="iGLCbJkAlC4y13wFpVjDZC">学生</option><option value="teacher" data-page-node-id="TxRoW1asFQDJ66IfKHGK1d">教师</option></select></div>
     <div class="err" id="auth-error" data-page-node-id="YwCotk6DYlCUn7QWXYIIM5"></div>
     <button class="primary-btn" id="auth-submit" style="width:100%" data-page-node-id="5QXcyLEW1NKUlDHp6yyyci">登 录</button>
     <div class="actions" data-page-node-id="QOUDGeQGON0mnTDt4VXuQF">

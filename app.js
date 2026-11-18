@@ -544,7 +544,7 @@
     'btn-translations': 'nav.translations', 'btn-uploads': 'nav.uploads',
     'btn-changelog': 'nav.changelog', 'btn-migrate': 'nav.migrate',
     'auth-title': 'auth.loginTitle', 'lb-auth-email': 'auth.email', 'lb-auth-password': 'auth.password',
-    'lb-auth-name': 'auth.name', 'lb-auth-role': 'auth.role',
+    'lb-auth-name': 'auth.name',
     'auth-toggle': 'auth.toRegister', 'auth-forgot': 'auth.forgot', 'auth-close': 'common.close',
     'auth-hint': 'auth.hint',
     'profile-title': 'profile.title', 'lb-p-name': 'profile.name', 'lb-p-faculty': 'profile.faculty',
@@ -565,7 +565,6 @@
     $('f-keyword').placeholder = T('filter.keyword');
     $('auth-submit').textContent = S.authMode === 'register' ? T('auth.doRegister') : T('auth.doLogin');
     const opts = [
-      ['auth-role', [['student', 'auth.roleStudent'], ['teacher', 'auth.roleTeacher']]],
       ['p-defaultby', [['group', 'profile.byGroup'], ['teacher', 'profile.byTeacher']]],
       ['e-status', [['normal', 'state.normal'], ['cancelled', 'state.cancelled'], ['rescheduled', 'state.rescheduled']]],
       ['e-type', [['personal', 'detail.eventOther'], ['exam', 'detail.eventExam'], ['homework', 'detail.eventHomework']]]
@@ -602,6 +601,9 @@
       btn.classList.toggle('active', btn.dataset.space === S.space));
     const mine = S.space === 'mine';
     const cb = $('f-onlymine'); if (cb) cb.checked = mine;
+    // 「恢复已删课程」属于个人课表操作，公共视图不显示
+    const restoreBtn = $('btn-restore');
+    if (restoreBtn) restoreBtn.classList.toggle('hidden', !mine || !S.user);
     const note = $('info-note-text');
     if (note) note.textContent = T(!mine ? 'page.info'
       : (!S.user ? 'detail.needLogin'
@@ -658,7 +660,8 @@
   /* ------------------------------------------------------------ 筛选器 */
   function fillSelect(id, values, formatter, key) {
     const el = $(id);
-    const cur = (key && S.filters[key]) || el.value;
+    // 不能用 `S.filters[key] || el.value`：清空筛选时 '' 会回落到旧值，导致「清除筛选」无效
+    const cur = key ? S.filters[key] : el.value;
     const all = T('common.all');
     const opts = ['<option value="">' + esc(all) + '</option>'].concat(
       values.map(v => '<option value="' + esc(v) + '">' + esc(formatter ? formatter(v) : v) + '</option>'));
@@ -1031,7 +1034,6 @@
     $('auth-submit').textContent = T(reg ? 'auth.doRegister' : 'auth.doLogin');
     $('auth-toggle').textContent = T(reg ? 'auth.toLogin' : 'auth.toRegister');
     $('auth-name-row').classList.toggle('hidden', !reg);
-    $('auth-role-row').classList.toggle('hidden', !reg);
     $('auth-error').textContent = '';
     $('auth-hint').textContent = T('auth.hint');
     showDlg('dlg-auth');
@@ -1055,10 +1057,10 @@
     try {
       if (S.authMode === 'register') {
         const cred = await FB.createUserWithEmailAndPassword(auth, email, pwd);
-        const role = $('auth-role').value === 'teacher' ? 'teacher' : 'student';
+        // 注册不再选身份：统一按学生建档；教师/班级偏好仍在个人设置里配置
         await FB.setDoc(FB.doc(db, 'users', cred.user.uid), Object.assign(defaultProfile(), {
           uid: cred.user.uid, email: email, name: $('auth-name').value.trim(),
-          role: role, lang: S.lang, createdAt: nowIso()
+          role: 'student', lang: S.lang, createdAt: nowIso()
         }));
       } else {
         await FB.signInWithEmailAndPassword(auth, email, pwd);
@@ -1536,6 +1538,7 @@
   // 恢复已删课程：列出所有被删除的个人覆盖，可逐条恢复（即便课程已不在课表中显示）
   function openRestore() {
     if (!S.user) return needLogin();
+    if (!personalView()) return;   // 仅个人课表可恢复
     if (!S.cloudOK) { toast(T('admin.offline'), 'error'); return; }
     const removed = Object.values(S.overrides).filter(o => o.deleted);
     let html = '';
