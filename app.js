@@ -513,6 +513,8 @@
     'lb-teacher': 'filter.teacher', 'lb-week': 'filter.week',
     'lb-subgroup': 'filter.subgroup', 'lb-onlymine': 'filter.onlyMine',
     'btn-reset': 'common.reset', 'btn-save-filters': 'filter.save',
+    'btn-save-schedule': 'filter.saveSchedule', 'btn-restore': 'filter.restore',
+    'detail-title': 'detail.title', 'restore-title': 'restore.title',
     'btn-export': 'common.export',
     'admin-label': 'nav.admin', 'btn-upload': 'nav.upload', 'btn-courses': 'nav.courses',
     'btn-translations': 'nav.translations', 'btn-uploads': 'nav.uploads',
@@ -654,6 +656,7 @@
     $('f-onlymine').checked = !!S.filters.onlyMine && !!S.user;
   }
 
+  let filterSyncTimer = null;
   function collectFilters() {
     S.filters = {
       faculty: $('f-faculty').value,
@@ -663,15 +666,19 @@
       program: '', mode: '', date: '',   // 已移除的筛选项
       keyword: $('f-keyword').value.trim(), onlyMine: $('f-onlymine').checked && !!S.user
     };
+    // 记住筛选改为默认行为：每次变动即存本地，登录时防抖同步云端（静默，不打扰用户）
+    writeStore('cm.filters', S.filters);
+    if (S.user && S.cloudOK) {
+      clearTimeout(filterSyncTimer);
+      filterSyncTimer = setTimeout(() => {
+        FB.updateDoc(FB.doc(db, 'users', S.user.uid), { filters: S.filters }).catch(() => {});
+      }, 600);
+    }
   }
 
   function saveFilters() {
     collectFilters();
-    writeStore('cm.filters', S.filters);
-    if (S.user && S.cloudOK) {
-      FB.updateDoc(FB.doc(db, 'users', S.user.uid), { filters: S.filters })
-        .then(() => toast(T('filter.saved'), 'ok')).catch(e => toast(e.message, 'error'));
-    } else toast(T('filter.saved'), 'ok');
+    toast(T('filter.saved'), 'ok');
   }
 
   /* ------------------------------------------------------------ 视图渲染 */
@@ -697,6 +704,7 @@
     if (e._event) cls.push('event');
     if (e._status === 'cancelled') cls.push('cancelled');
     if (S.conflictIds.has(e.id)) cls.push('conflict');
+    if (S.notes[e.id] && S.notes[e.id].star) cls.push('starred');
     const tags = [];
     if (e['教室'] === '网课') tags.push(tagHtml(T('common.online'), 'blue'));
     if (e._personal) tags.push(tagHtml(T('common.personal'), 'yellow'));
@@ -708,6 +716,7 @@
       tags.push(tagHtml(T(k), 'purple'));
     }
     if (e['小组'] && e['小组'] !== '全部') tags.push(tagHtml(e['小组'], ''));
+    if (S.notes[e.id] && S.notes[e.id].star) tags.push('<span class="tag star-tag">★</span>');
     const zh = e._zh && e._zh !== e['课程'] ? '<span class="zh"> · ' + esc(e._zh) + '</span>' : '';
     const line = [e['教师'], e['教室'] === '网课' ? '' : e['教室'], modeLabel(e['授课形式'])]
       .filter(Boolean).join(' · ');
@@ -1111,7 +1120,6 @@
     html += '<div class="section-title">' + esc(T('common.personal')) + '</div><div class="actions">' +
       '<button class="ghost-btn" data-act="edit-personal">' + esc(T('detail.editPersonal')) + '</button>' +
       '<button class="ghost-btn" data-act="hide-personal">' + esc(T('detail.deletePersonal')) + '</button>' +
-      '<button class="ghost-btn" data-act="restore-official">' + esc(T('detail.restoreOfficial')) + '</button>' +
       '<button class="ghost-btn" data-act="add-event">' + esc(T('detail.addEvent')) + '</button>' +
       '<button class="ghost-btn" data-act="report-error">' + esc(T('detail.reportError')) + '</button>' +
       '</div>';
@@ -1123,7 +1131,31 @@
         '</div>';
     }
     $('detail-body').innerHTML = html;
+    updateStarBtn(!!(note && note.star));
     showDlg('dlg-detail');
+  }
+
+  function updateStarBtn(on) {
+    const b = $('detail-star'); if (!b) return;
+    b.textContent = on ? '★' : '☆';
+    b.classList.toggle('on', !!on);
+    b.title = T(on ? 'detail.starOff' : 'detail.starOn');
+  }
+
+  async function toggleStar() {
+    if (!S.user || !S.cloudOK) return needLogin();
+    const id = S.detailId; if (!id) return;
+    const cur = S.notes[id] || {};
+    const star = !cur.star;
+    const key = hashId(S.user.uid + '|' + id);
+    const data = { uid: S.user.uid, entryId: id, text: cur.text || '', star: star, updatedAt: nowIso() };
+    try {
+      await FB.setDoc(FB.doc(db, 'userNotes', key), data);
+      S.notes[id] = { id: key, ...data };
+      updateStarBtn(star);
+      render();
+      toast(T(star ? 'detail.starAdded' : 'detail.starRemoved'), 'ok');
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   async function saveNote(remove) {
@@ -1131,9 +1163,11 @@
     const id = S.detailId;
     const text = remove ? '' : ($('d-note') ? $('d-note').value.trim() : '');
     const key = hashId(S.user.uid + '|' + id);
+    const star = !!(S.notes[id] && S.notes[id].star);
     try {
-      if (text) {
-        const data = { uid: S.user.uid, entryId: id, text: text, updatedAt: nowIso() };
+      if (text || star) {
+        // 保留星标字段：删除备注不应清掉星标
+        const data = { uid: S.user.uid, entryId: id, text: text, star: star, updatedAt: nowIso() };
         await FB.setDoc(FB.doc(db, 'userNotes', key), data);
         S.notes[id] = { id: key, ...data };
       } else {
@@ -1141,6 +1175,7 @@
         delete S.notes[id];
       }
       if ($('d-note')) $('d-note').value = text;
+      render();
       toast(T('edit.saved'), 'ok');
     } catch (e) { toast(e.message, 'error'); }
   }
@@ -1435,6 +1470,57 @@
       delete S.overrides[id];
     }
     toast(T('edit.restored'), 'ok'); render();
+  }
+
+  // 保存课表：把当前视图里可见的公共课程整批写入个人课表（userScheduleOverrides），需登录
+  async function saveScheduleToMine() {
+    if (!S.user) return needLogin();
+    if (!S.cloudOK) { toast(T('admin.offline'), 'error'); return; }
+    const list = rangeEntries().filter(e => !e._event && !e._personal);
+    if (!list.length) { toast(T('saveSchedule.empty'), 'error'); return; }
+    // 已存在的个人覆盖不重复写入
+    const items = list.filter(e => !S.overrides[e.id]);
+    if (!items.length) { toast(T('saveSchedule.already'), 'ok'); return; }
+    let ok = 0;
+    try {
+      await chunkedBatch(items, (batch, e) => {
+        const key = hashId(S.user.uid + '|' + e.id);
+        batch.set(FB.doc(db, 'userScheduleOverrides', key), {
+          uid: S.user.uid, entryId: e.id, patch: {}, deleted: false, createdAt: nowIso()
+        });
+        ok++;
+      });
+      items.forEach(e => {
+        const key = hashId(S.user.uid + '|' + e.id);
+        S.overrides[e.id] = { id: key, uid: S.user.uid, entryId: e.id, patch: {}, deleted: false, createdAt: nowIso() };
+      });
+      toast(T('saveSchedule.done', { n: ok }), 'ok');
+      render();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  // 恢复已删课程：列出所有被删除的个人覆盖，可逐条恢复（即便课程已不在课表中显示）
+  function openRestore() {
+    if (!S.user) return needLogin();
+    if (!S.cloudOK) { toast(T('admin.offline'), 'error'); return; }
+    const removed = Object.values(S.overrides).filter(o => o.deleted);
+    let html = '';
+    if (!removed.length) {
+      html = '<p class="hint">' + esc(T('restore.empty')) + '</p>';
+    } else {
+      html = '<div class="restore-list">';
+      removed.forEach(o => {
+        const e = S.entries.find(x => x.id === o.entryId) || {};
+        html += '<div class="restore-item">' +
+          '<div class="restore-info"><strong>' + esc(displayCourse(e) || o.entryId) + '</strong>' +
+          '<span>' + esc([e['日期'], e['时间'], e['教师']].filter(Boolean).join(' · ')) + '</span></div>' +
+          '<button class="ghost-btn" data-act="restore-pick" data-id="' + esc(o.entryId) + '">' +
+          esc(T('detail.restoreOfficial')) + '</button></div>';
+      });
+      html += '</div>';
+    }
+    $('restore-body').innerHTML = html;
+    showDlg('dlg-restore');
   }
 
   async function deleteOfficial(id) {
@@ -1739,6 +1825,10 @@
       initFilterOptions(); render();
     };
     $('btn-save-filters').onclick = saveFilters;
+    $('btn-save-schedule').onclick = saveScheduleToMine;
+    $('btn-restore').onclick = openRestore;
+    $('detail-star').onclick = toggleStar;
+    $('restore-close').onclick = () => hideDlg('dlg-restore');
     $('btn-export').onclick = exportScheduleImage;
     $('btn-print').onclick = () => window.print();
 
@@ -1777,7 +1867,7 @@
     $('e-close').onclick = () => hideDlg('dlg-edit');
     $('admin-close').onclick = () => hideDlg('dlg-admin');
 
-    ['dlg-auth', 'dlg-profile', 'dlg-detail', 'dlg-edit', 'dlg-admin'].forEach(id => {
+    ['dlg-auth', 'dlg-profile', 'dlg-detail', 'dlg-restore', 'dlg-edit', 'dlg-admin'].forEach(id => {
       $(id).addEventListener('click', e => { if (e.target === $(id)) hideDlg(id); });
     });
 
@@ -1790,6 +1880,10 @@
     $('detail-body').addEventListener('click', e => {
       const btn = e.target.closest('[data-act]');
       if (btn) handleAction(btn.dataset.act, S.detailId, btn);
+    });
+    $('restore-body').addEventListener('click', e => {
+      const btn = e.target.closest('[data-act]');
+      if (btn) handleAction(btn.dataset.act, btn.dataset.id, btn);
     });
     $('admin-body').addEventListener('click', e => {
       const btn = e.target.closest('[data-act]');
@@ -1842,7 +1936,11 @@
         hideDlg('dlg-detail'); await hidePersonal(id);
         break;
       case 'restore-official':
-        hideDlg('dlg-detail'); await restoreOfficial(id);
+      case 'restore-pick':
+        await restoreOfficial(id);
+        // 从恢复列表点按时，刷新列表；从详情点按时关闭详情
+        if (act === 'restore-pick') openRestore();
+        else hideDlg('dlg-detail');
         break;
       case 'add-event':
         if (!S.user || !S.cloudOK) return needLogin();
