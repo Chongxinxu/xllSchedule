@@ -465,18 +465,19 @@
     updateChrome(); render();
   }
 
+  // 离线横幅默认永久隐藏：国内网络下 Firebase 常不可达，横幅会一直占位置。
+  // 本地管理仍可通过 URL ?localAdmin=1 开启、?localAdmin=0 关闭，状态存 localStorage。
   function showOffline(on, reason) {
     const b = $('offline-banner');
-    if (!b) return;
-    b.classList.toggle('hidden', !on);
+    if (b) b.classList.add('hidden');
     const btn = $('btn-local-admin'), txt = $('offline-text');
     if (btn) {
       btn.textContent = S.localAdmin ? T('offline.localAdminOff') : T('offline.localAdminBtn');
-      btn.classList.toggle('hidden', !on);
+      btn.classList.add('hidden');
     }
-    const msg = (on && S.localAdmin) ? T('offline.localAdminOn') : (reason || T('admin.offline'));
-    if (txt) txt.textContent = msg;
-    else if (on) b.textContent = msg;
+    if (txt && on) {
+      txt.textContent = (on && S.localAdmin) ? T('offline.localAdminOn') : (reason || T('admin.offline'));
+    }
   }
 
   async function loadUserData() {
@@ -1880,7 +1881,8 @@
     };
     Object.keys(adminButtons).forEach(id => $(id).onclick = () => openAdmin(adminButtons[id]));
 
-    $('btn-local-admin').onclick = () => {
+    const localBtn = $('btn-local-admin');
+    if (localBtn) localBtn.onclick = () => {
       S.localAdmin = !S.localAdmin;
       writeStore('cm.localAdmin', S.localAdmin);
       showOffline(true);
@@ -1994,6 +1996,9 @@
       if (/[?&]localAdmin=1/.test(window.location.search)) {
         S.localAdmin = true;
         writeStore('cm.localAdmin', true);
+      } else if (/[?&]localAdmin=0/.test(window.location.search)) {
+        S.localAdmin = false;
+        writeStore('cm.localAdmin', false);
       }
     } catch (e) { /* 非浏览器环境 */ }
     S.space = S.filters.onlyMine ? 'mine' : 'public';
