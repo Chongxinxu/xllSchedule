@@ -7,63 +7,127 @@
 <style id="__dm_no_drag_style__">* { -webkit-user-drag: none !important; }</style><style id="__dm_bindable_badge_style__">[data-sp-bindable="database"]{outline:1px dashed #0088ff;outline-offset:2px;border-radius:4px;}[data-sp-bindable="database"] *{pointer-events:none !important;transition:none !important;animation:none !important;}[data-sp-bindable="database"]{transition:none !important;animation:none !important;}</style></head>
 <body data-page-node-id="Apd1VCDBw1rInLzy4wUm0V" style="position: relative;">
 
-<header data-page-node-id="IzZBaxFPfbp1EwOPahfcUk">
-  <div class="brand" data-page-node-id="a8Km74LNEcZ5X1cH2Vw7pW">
-    <div class="brand-mark" data-page-node-id="hpSrV7TBtUoBnoo1CL5b5w">课</div>
-    <div data-page-node-id="XSC29H4SpXzUZfJCEO44Aw">
-      <h1 id="app-title" data-page-node-id="eN3CcL7psn1319OcuKTV8g">课程管理系统</h1>
-      <div class="tagline" id="app-tagline" data-page-node-id="Fu7dpzOpWF0KBM9vEB4Z6t">硕士课程表 · 个人课表 · 多语言</div>
+<div class="app-shell">
+
+<!-- ============ 左侧栏 ============ -->
+<aside class="sidebar" id="sidebar">
+  <div class="side-brand">
+    <div class="side-emblem" aria-hidden="true">
+      <svg viewBox="0 0 40 44" width="34" height="38"><path d="M20 2 L38 12 L38 16 L2 16 L2 12 Z" fill="currentColor"/><path d="M6 18 H11 V36 H6 Z M17 18 H22 V36 H17 Z M28 18 H33 V36 H28 Z" fill="currentColor"/><path d="M2 38 H38 V42 H2 Z" fill="currentColor"/></svg>
+    </div>
+    <div class="side-brand-txt">
+      <strong id="side-brand-1">ВШУ МГУ</strong>
+      <span id="side-brand-2">Высшая школа управления и инноваций</span>
     </div>
   </div>
 
-  <div class="view-tabs" id="view-tabs" data-page-node-id="NQe2X4ClcFZWzzRUrPQFwO">
-    <button data-view="week" class="active" id="tab-week" data-page-node-id="Ec58sMAUcQTsrX4NR0lvQ1">周视图</button>
-    <button data-view="day" id="tab-day" data-page-node-id="9bokPbXCpMGeLlAP2vj6kf">日视图</button>
-    <button data-view="month" id="tab-month" data-page-node-id="bAjl3TgnGTL0186CZZ7Ysp">月视图</button>
-    <button data-view="list" id="tab-list" data-page-node-id="8h1ZBxJJKQwe9eoJOIyPmJ">明细表</button>
-  </div>
+  <nav class="side-nav">
+    <button class="side-item active" id="nav-public" data-space="public">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path d="M7 3h10a2 2 0 0 1 2 2v16l-7-3-7 3V5a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      <span id="nav-public-label">公共课程表</span>
+    </button>
+    <button class="side-item" id="nav-mine" data-space="mine">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path d="M6 3h9l4 4v14H6z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 12h7M9 16h7M9 8h3" stroke="currentColor" stroke-width="1.8"/></svg>
+      <span id="nav-mine-label">个人课程表</span>
+    </button>
+    <button class="side-item" id="nav-help" data-action="help">
+      <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 1-1 1.7M12 17h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span id="nav-help-label">帮助</span>
+    </button>
+    <button class="side-item" id="nav-account" data-action="account">
+      <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      <span id="nav-account-label">账户</span>
+    </button>
+  </nav>
 
-  <div class="spacer" data-page-node-id="n26VNDpOtNW8ZnzIiBFfk7"></div>
-
-  <div class="lang-switch" data-page-node-id="yCKgCHFbNKR2WWWLA5X8fv">
-    <button id="lang-zh" class="active" data-page-node-id="E6EXMHWT4RMMpMIj46q2p5">中</button>
-    <button id="lang-ru" data-page-node-id="Y81hwxS5rdABzTBs1W59sG">RU</button>
+  <div class="side-foot">
+    <div class="side-badges">
+      <span class="badge" id="perm-badge">只读访客</span>
+    </div>
+    <span id="user-label" class="side-user"></span>
+    <button class="link-btn hidden" id="btn-profile">个人设置</button>
+    <button class="link-btn danger hidden" id="btn-logout">退出登录</button>
   </div>
+</aside>
 
-  <div class="user-nav" data-page-node-id="fWnxbc4F6ZeEYYikzQuCNQ">
-    <span class="badge" id="perm-badge" data-page-node-id="oEjvDbvpqkjIQYyXslizeP">只读访客</span>
-    <span id="user-label" style="font-size:12px;color:var(--muted)" data-page-node-id="c4jJYhLANDEiPabkS3LKGG"></span>
-    <button class="link-btn hidden" id="btn-profile" data-page-node-id="xBhx8iX2tMYZvHNEGN71w0">个人设置</button>
-    <button class="primary-btn" id="btn-login" data-page-node-id="ollXdFeS33kv6r6i0QztA7">登录 / 注册</button>
-    <button class="link-btn danger hidden" id="btn-logout" data-page-node-id="Ar7B8vGmexC20MreyOxeR2">退出登录</button>
+<!-- ============ 主区域 ============ -->
+<div class="main-area">
+
+<header class="topbar" data-page-node-id="IzZBaxFPfbp1EwOPahfcUk">
+  <div class="topbar-title">
+    <button class="icon-btn side-toggle" id="side-toggle" aria-label="menu">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div class="top-heading">
+      <h1 id="app-title">课程管理系统</h1>
+      <div class="tagline" id="app-tagline">硕士课程表 · 个人课表 · 多语言</div>
+    </div>
   </div>
+  <div class="spacer"></div>
+  <div class="lang-switch">
+    <svg class="globe" viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
+    <button id="lang-zh" class="active">中</button>
+    <button id="lang-ru">RU</button>
+  </div>
+  <button class="primary-btn" id="btn-login">登录 / 注册</button>
 </header>
 
-<div class="banner offline hidden" id="offline-banner" data-page-node-id="Zvv9bhkV030zU70LyoBTrY"><span id="offline-text"></span><button class="link-btn" id="btn-local-admin" style="margin-left:auto;white-space:nowrap">启用本地管理</button></div>
+<div class="banner offline hidden" id="offline-banner"><span id="offline-text"></span><button class="link-btn" id="btn-local-admin" style="margin-left:auto;white-space:nowrap">启用本地管理</button></div>
 
-<div class="wrap" data-page-node-id="AvHL4zSGYfi0PvFTWJc1EL">
-  <div class="meta-row" data-page-node-id="BiisC7sx9maLDowB0noqcV">
-    <span class="chip" id="meta-publish" data-page-node-id="l3wUwQzPPCl0gbVEfHFCzp">最后发布：—</span>
-    <span class="chip" id="meta-count" data-page-node-id="upyDrsrOMdpVxgNUPUpaIK">共 0 条</span>
-    <span class="chip yellow" id="meta-week" data-page-node-id="DkLM1H4PDJigdPN42LwUZI">教学周</span>
-    <span class="chip" id="meta-mode" data-page-node-id="RmGBACFbwa5MnffQUcA5gO">只读访客</span>
+<div class="wrap">
+
+  <div class="page-head">
+    <div>
+      <h2 id="page-title">课程表</h2>
+      <div class="page-sub" id="page-sub">Высшая школа управления и инноваций МГУ</div>
+    </div>
+    <div class="info-note" id="info-note">
+      <span class="info-ico">i</span>
+      <span id="info-note-text">查看大学全部课程。要看自己的课表，请选择专业和班级，或切换到"个人课程表"。</span>
+    </div>
   </div>
 
-  <div class="toolbar" id="toolbar" data-page-node-id="RsERFqHOyCP4UQ9AfqPVGU">
-    <label data-page-node-id="lGdeQSjWpZRWe6CgAkXASy"><span id="lb-faculty" data-page-node-id="vCGwASBYMLxDmzAFFJRDrz">学院</span><select id="f-faculty" data-page-node-id="uYCesa2OWiDDgcGm5sRdOn"></select></label>
-    <label data-page-node-id="nwmkCrBFWtLYBEeSQCvnnT"><span id="lb-program" data-page-node-id="sVEe70uFU9b9fT65DQ8EDm">专业</span><select id="f-program" data-page-node-id="n7e4OoW3baZKTDbnWe3JLY"></select></label>
-    <label data-page-node-id="0Kmb5sHg7knHrqHRiEXVOc"><span id="lb-group" data-page-node-id="swAFxBUfBqE10It7Y9Hjl1">班级</span><select id="f-group" data-page-node-id="yLc8d9DnkyXcR2yK5HwZT5"></select></label>
-    <label data-page-node-id="uz4hCVUmbwZdTcZ5JvAImr"><span id="lb-teacher" data-page-node-id="H2xSe6D0QFmGkl8ONaJvZE">教师</span><select id="f-teacher" data-page-node-id="zdFG6f2KfGmqmRgVbUTpnZ"></select></label>
-    <label data-page-node-id="v52P13U3fVQDpTtsxBmvU4"><span id="lb-week" data-page-node-id="WhmtmX1fUjqjl0pGgjaUKu">教学周</span><select id="f-week" data-page-node-id="ro8A6hzD2P61fMorpN8YGT"></select></label>
-    <label data-page-node-id="SXhTZCFVVjnXIO39JeYny2"><span id="lb-date" data-page-node-id="jywA6U6P6Xh2DYRoVZp7Q9">日期</span><input type="date" id="f-date" data-page-node-id="kibNKbH5BaxT2EqnxlV2J4" style=""></label>
-    <label data-page-node-id="8L67JHWdnDFKJwIbNnl3GY"><span id="lb-mode" data-page-node-id="l9w5KHWaDaKAWpmIuv9uiw">授课形式</span><select id="f-mode" data-page-node-id="lIYOqWSLGFRjvydkeowUyP"></select></label>
-    <label data-page-node-id="veoWyoXgNMrIjb3APphjAC"><span id="lb-subgroup" data-page-node-id="8v0S3qyHOEcYGuEveBor25">分组</span><select id="f-subgroup" data-page-node-id="a7Dj874F6iXQTegnW6P3FR"></select></label>
-    <input type="text" id="f-keyword" placeholder="搜索课程 / 教师 / 教室…" data-page-node-id="myk7jDAcK94te1gADaBnVs">
-    <label class="check" data-page-node-id="JkgQgaBU3Y6eYRHfSKHbeW"><input type="checkbox" id="f-onlymine" data-page-node-id="yTFNIPExH4qqc1fnyQI3He"><span id="lb-onlymine" data-page-node-id="HEZCFpINmypt075JpDeKCe">只看我的课表</span></label>
-    <button class="ghost-btn" id="btn-reset" data-page-node-id="rTwS7F0GZ8YbxtZ0HZBr65">清除筛选</button>
-    <button class="ghost-btn" id="btn-save-filters" data-page-node-id="Wknb062Bpi6nO1kLTHEP9q">记住筛选</button>
-    <button class="ghost-btn" id="btn-export" data-page-node-id="duVXo1L6egT6thciIGoGCc">导出 CSV</button>
-    <button class="ghost-btn" id="btn-print" data-page-node-id="DEmueVNh6dqIPdo2kBFvsI">打印 / 存为 PDF</button>
+  <div class="meta-row">
+    <span class="chip" id="meta-publish">最后发布：—</span>
+    <span class="chip" id="meta-count">共 0 条</span>
+    <span class="chip yellow" id="meta-week">教学周</span>
+    <span class="chip" id="meta-mode">只读访客</span>
+  </div>
+
+  <div class="controls-row">
+    <div class="view-tabs" id="view-tabs">
+      <button data-view="week" class="active" id="tab-week">周视图</button>
+      <button data-view="day" id="tab-day">日视图</button>
+      <button data-view="month" id="tab-month">月视图</button>
+      <button data-view="list" id="tab-list">明细表</button>
+    </div>
+    <div class="week-nav">
+      <button class="ghost-btn" id="btn-prev" title="上一周">‹ 上一周</button>
+      <input type="date" id="view-date" title="跳转日期">
+      <button class="ghost-btn" id="btn-next" title="下一周">下一周 ›</button>
+    </div>
+  </div>
+
+  <div class="toolbar" id="toolbar">
+    <label><span id="lb-faculty">学院</span><select id="f-faculty"></select></label>
+    <label><span id="lb-program">专业</span><select id="f-program"></select></label>
+    <label><span id="lb-group">班级</span><select id="f-group"></select></label>
+    <label><span id="lb-teacher">教师</span><select id="f-teacher"></select></label>
+    <label><span id="lb-mode">授课形式</span><select id="f-mode"></select></label>
+    <label><span id="lb-week">教学周</span><select id="f-week"></select></label>
+    <label><span id="lb-date">日期</span><input type="date" id="f-date"></label>
+    <label><span id="lb-subgroup">分组</span><select id="f-subgroup"></select></label>
+    <input type="text" id="f-keyword" placeholder="搜索课程 / 教师 / 教室…">
+    <label class="check"><input type="checkbox" id="f-onlymine"><span id="lb-onlymine">只看我的课表</span></label>
+    <button class="ghost-btn" id="btn-reset">清除筛选</button>
+    <button class="ghost-btn" id="btn-save-filters">记住筛选</button>
+    <button class="ghost-btn" id="btn-export">导出 CSV</button>
+    <button class="ghost-btn" id="btn-print">打印 / 存为 PDF</button>
+  </div>
+
+  <div class="view-head">
+    <h2 id="view-title">—</h2>
+    <span class="sub" id="view-sub"></span>
   </div>
 
   <div class="admin-bar hidden" id="admin-bar" data-page-node-id="BMDkiEJk6fiWjQDF88uapZ">
@@ -76,16 +140,10 @@
     <button class="ghost-btn" id="btn-migrate" data-page-node-id="XKshc3waW50QeCt3zdJmFZ">导入本地 data.js</button>
   </div>
 
-  <div class="view-head" data-page-node-id="uRlB4fGbLFlIbUp7M1Q7rY">
-    <button class="ghost-btn" id="btn-prev" data-page-node-id="70R69ZjcU5ZfPo2qtTYxTe">上一周</button>
-    <button class="ghost-btn" id="btn-next" data-page-node-id="0MEl3btcfLsLq6SFBvMbgU">下一周</button>
-    <input type="date" id="view-date" class="ghost-btn" style="padding:6px 10px" data-page-node-id="tpoLA4POUWWI4BjNsC5buK">
-    <h2 id="view-title" data-page-node-id="BkNlU5m3aW9GgmNTC9fl4E">—</h2>
-    <span class="sub" id="view-sub" data-page-node-id="Yy8LkvJiyqMm33jWaa41q9"></span>
-  </div>
-
   <div id="view-container" data-page-node-id="9IjHQxrHqNxMdYEJh7AeRZ"></div>
-</div>
+</div><!-- /.wrap -->
+</div><!-- /.main-area -->
+</div><!-- /.app-shell -->
 
 <div class="overlay" id="dlg-auth" data-page-node-id="UGkXdvtCrxN55o4TyEcLMz">
   <div class="dialog" data-page-node-id="miPdTQVj0o7OT7lX0UAaB0">

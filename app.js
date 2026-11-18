@@ -78,6 +78,8 @@
     editCtx: null,
     detailId: null,
     adminMode: 'upload',
+    space: 'public',                 // 左侧页签：public=公共课表 / mine=个人课表
+    sidebarOpen: false,
     localMode: false,
     localAdmin: readStore('cm.localAdmin', false) === true
   };
@@ -334,6 +336,7 @@
       S.profile.lang = S.lang;
       S.overrides = {}; S.events = []; S.notes = {};
       S.isAdmin = false;
+      if (S.space === 'mine') { S.space = 'public'; S.filters.onlyMine = false; updateSpaceTabs(); }
       updateChrome(); render();
       return;
     }
@@ -385,7 +388,7 @@
       if (!entries.length && !localEntries.length) {
         const oldSnap = await FB.getDocs(col('courses'));
         entries = oldSnap.docs.map(d => normalizeEntry(d.data(), d.id));
-        if (entries.length) toast(T('admin.migrateTitle') + '（检测到旧版数据）');
+        if (entries.length) toast(T('admin.legacyDetected'));
       } else if (entries.length && localEntries.length) {
         const cloudDates = new Set(entries.map(e => e['日期']));
         const missing = localEntries.filter(e => !cloudDates.has(e['日期']));
@@ -492,6 +495,10 @@
   /* ------------------------------------------------------------ 界面文案 */
   const LABELS = {
     'app-title': 'app.title', 'app-tagline': 'app.tagline',
+    'side-brand-1': 'brand.name', 'side-brand-2': 'brand.sub',
+    'nav-public-label': 'space.public', 'nav-mine-label': 'space.mine',
+    'nav-help-label': 'space.help', 'nav-account-label': 'space.account',
+    'page-title': 'page.schedule', 'page-sub': 'page.sub', 'info-note-text': 'page.info',
     'tab-week': 'nav.week', 'tab-day': 'nav.day', 'tab-month': 'nav.month', 'tab-list': 'nav.list',
     'btn-login': 'nav.login', 'btn-profile': 'nav.profile', 'btn-logout': 'nav.logout',
     'lb-faculty': 'filter.faculty', 'lb-program': 'filter.program', 'lb-group': 'filter.group',
@@ -541,8 +548,43 @@
     document.title = T('app.title');
     $('btn-prev').textContent = T(S.view === 'month' ? 'view.prevMonth' : 'view.prevWeek');
     $('btn-next').textContent = T(S.view === 'month' ? 'view.nextMonth' : 'view.nextWeek');
+    // 无文字的图标按钮靠 title 提供无障碍提示
+    const titles = { 'side-toggle': 'nav.public', 'btn-prev': 'view.prevWeek', 'btn-next': 'view.nextWeek', 'view-date': 'view.pickDate' };
+    Object.keys(titles).forEach(id => { const el = $(id); if (el) el.title = T(titles[id]); });
+    const lt = $('loading-text'); if (lt && !$('loading').classList.contains('open')) lt.textContent = T('common.loading');
+    updateSpaceTabs();
     initFilterOptions();
   }
+
+  // 左侧「公共 / 个人」页签高亮：mine 与 onlyMine 同步
+  function updateSpaceTabs() {
+    document.querySelectorAll('.side-item[data-space]').forEach(btn =>
+      btn.classList.toggle('active', btn.dataset.space === S.space));
+    const mine = S.space === 'mine';
+    const cb = $('f-onlymine'); if (cb) cb.checked = mine;
+    const note = $('info-note-text');
+    if (note) note.textContent = T(mine ? 'page.needLogin' : 'page.info');
+  }
+
+  function setSpace(space) {
+    if (space === 'mine') {
+      if (!S.user) { needLogin(); return; }
+      if (!S.profile.group && !S.profile.teacher) {
+        toast(T('page.needLogin'), 'error');
+        openProfile();
+        return;
+      }
+    }
+    S.space = space;
+    S.filters.onlyMine = space === 'mine';
+    writeStore('cm.filters', S.filters);
+    updateSpaceTabs();
+    render();
+    closeSidebar();
+  }
+
+  function openSidebar() { S.sidebarOpen = true; $('sidebar').classList.add('open'); }
+  function closeSidebar() { S.sidebarOpen = false; $('sidebar').classList.remove('open'); }
 
   function switchLang(lang) {
     S.lang = lang;
@@ -1516,6 +1558,13 @@
     document.querySelectorAll('#view-tabs button').forEach(btn => btn.onclick = () => {
       S.view = btn.dataset.view; updateChrome(); render();
     });
+    // 左侧页签：公共 / 个人课表
+    document.querySelectorAll('.side-item[data-space]').forEach(btn =>
+      btn.onclick = () => setSpace(btn.dataset.space));
+    $('nav-help').onclick = () => { toast(T('page.info')); closeSidebar(); };
+    $('nav-account').onclick = () => { if (!S.user) openAuth('login'); else openProfile(); closeSidebar(); };
+    $('side-toggle').onclick = () => { S.sidebarOpen ? closeSidebar() : openSidebar(); };
+
     $('lang-zh').onclick = () => switchLang('zh');
     $('lang-ru').onclick = () => switchLang('ru');
     $('btn-login').onclick = () => openAuth('login');
@@ -1531,13 +1580,18 @@
       };
     });
     $('f-keyword').oninput = () => { collectFilters(); render(); };
-    $('f-onlymine').onchange = () => { collectFilters(); render(); };
+    $('f-onlymine').onchange = () => {
+      collectFilters();
+      S.space = S.filters.onlyMine ? 'mine' : 'public';
+      updateSpaceTabs(); render();
+    };
     $('btn-reset').onclick = () => {
       S.filters = {
         faculty: '', program: '', group: '', teacher: '', week: '', date: '',
         mode: '', subgroup: '', keyword: '', onlyMine: false
       };
       writeStore('cm.filters', S.filters);
+      S.space = 'public'; updateSpaceTabs();
       initFilterOptions(); render();
     };
     $('btn-save-filters').onclick = saveFilters;
@@ -1680,6 +1734,7 @@
         writeStore('cm.localAdmin', true);
       }
     } catch (e) { /* 非浏览器环境 */ }
+    S.space = S.filters.onlyMine ? 'mine' : 'public';
     applyI18n();
     bindEvents();
     loadLocalData(false);
