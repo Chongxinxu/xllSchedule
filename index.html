@@ -98,7 +98,6 @@
     <div class="view-tabs" id="view-tabs">
       <button data-view="week" class="active" id="tab-week">周视图</button>
       <button data-view="day" id="tab-day">日视图</button>
-      <button data-view="month" id="tab-month">月视图</button>
       <button data-view="list" id="tab-list">明细表</button>
     </div>
     <div class="week-nav">
@@ -110,19 +109,16 @@
 
   <div class="toolbar" id="toolbar">
     <label><span id="lb-faculty">学院</span><select id="f-faculty"></select></label>
-    <label><span id="lb-program">专业</span><select id="f-program"></select></label>
     <label><span id="lb-group">班级</span><select id="f-group"></select></label>
     <label><span id="lb-teacher">教师</span><select id="f-teacher"></select></label>
-    <label><span id="lb-mode">授课形式</span><select id="f-mode"></select></label>
     <label><span id="lb-week">教学周</span><select id="f-week"></select></label>
-    <label><span id="lb-date">日期</span><input type="date" id="f-date"></label>
     <label><span id="lb-subgroup">分组</span><select id="f-subgroup"></select></label>
     <input type="text" id="f-keyword" placeholder="搜索课程 / 教师 / 教室…">
     <label class="check"><input type="checkbox" id="f-onlymine"><span id="lb-onlymine">只看我的课表</span></label>
     <button class="ghost-btn" id="btn-reset">清除筛选</button>
     <button class="ghost-btn" id="btn-save-filters">记住筛选</button>
-    <button class="ghost-btn" id="btn-export">导出 CSV</button>
-    <button class="ghost-btn" id="btn-print">打印 / 存为 PDF</button>
+    <button class="ghost-btn" id="btn-export">导出图片</button>
+    <button class="ghost-btn hidden" id="btn-print">打印 / 存为 PDF</button>
   </div>
 
   <div class="view-head">

@@ -83,6 +83,8 @@
     localMode: false,
     localAdmin: readStore('cm.localAdmin', false) === true
   };
+  // 已下线筛选项：清掉历史保存值，避免隐藏条件继续影响结果
+  S.filters.program = ''; S.filters.mode = ''; S.filters.date = '';
   S.anchor = localToday();
 
   /* ------------------------------------------------------------ 基础工具 */
@@ -233,8 +235,14 @@
     const f = S.filters;
     const p = S.profile;
     if (f.onlyMine) {
-      if (p.defaultBy === 'teacher') { if (p.teacher && e['教师'] !== p.teacher) return false; }
-      else if (p.group && e['班级'] !== p.group && !e._event) return false;
+      // 个人日程与手动添加的事件永远属于「我的课表」
+      if (e._event || e._personal) { /* 保留 */ }
+      else {
+        const key = personalKey();
+        // 尚未设置班级/教师：个人页不展示任何官方课程，只显示个人日程
+        if (!key) return false;
+        if (p.defaultBy === 'teacher' ? e['教师'] !== key : e['班级'] !== key) return false;
+      }
     }
     if (f.faculty && e._faculty !== f.faculty) return false;
     if (f.program && e['专业'] !== f.program) return false;
@@ -344,7 +352,7 @@
     S.profile.email = user.email || '';
     await loadUserData();
     await resolveAdmin(user);
-    updateChrome(); render();
+    updateChrome(); updateSpaceTabs(); render();
   }
 
   async function resolveAdmin(user) {
@@ -499,13 +507,13 @@
     'nav-public-label': 'space.public', 'nav-mine-label': 'space.mine',
     'nav-help-label': 'space.help', 'nav-account-label': 'space.account',
     'page-title': 'page.schedule', 'page-sub': 'page.sub', 'info-note-text': 'page.info',
-    'tab-week': 'nav.week', 'tab-day': 'nav.day', 'tab-month': 'nav.month', 'tab-list': 'nav.list',
+    'tab-week': 'nav.week', 'tab-day': 'nav.day', 'tab-list': 'nav.list',
     'btn-login': 'nav.login', 'btn-profile': 'nav.profile', 'btn-logout': 'nav.logout',
-    'lb-faculty': 'filter.faculty', 'lb-program': 'filter.program', 'lb-group': 'filter.group',
-    'lb-teacher': 'filter.teacher', 'lb-week': 'filter.week', 'lb-date': 'filter.date',
-    'lb-mode': 'filter.mode', 'lb-subgroup': 'filter.subgroup', 'lb-onlymine': 'filter.onlyMine',
+    'lb-faculty': 'filter.faculty', 'lb-group': 'filter.group',
+    'lb-teacher': 'filter.teacher', 'lb-week': 'filter.week',
+    'lb-subgroup': 'filter.subgroup', 'lb-onlymine': 'filter.onlyMine',
     'btn-reset': 'common.reset', 'btn-save-filters': 'filter.save',
-    'btn-export': 'common.export', 'btn-print': 'common.print',
+    'btn-export': 'common.export',
     'admin-label': 'nav.admin', 'btn-upload': 'nav.upload', 'btn-courses': 'nav.courses',
     'btn-translations': 'nav.translations', 'btn-uploads': 'nav.uploads',
     'btn-changelog': 'nav.changelog', 'btn-migrate': 'nav.migrate',
@@ -546,14 +554,20 @@
     $('lang-ru').classList.toggle('active', S.lang === 'ru');
     document.documentElement.lang = S.lang === 'ru' ? 'ru' : 'zh';
     document.title = T('app.title');
-    $('btn-prev').textContent = T(S.view === 'month' ? 'view.prevMonth' : 'view.prevWeek');
-    $('btn-next').textContent = T(S.view === 'month' ? 'view.nextMonth' : 'view.nextWeek');
+    $('btn-prev').textContent = T('view.prevWeek');
+    $('btn-next').textContent = T('view.nextWeek');
     // 无文字的图标按钮靠 title 提供无障碍提示
     const titles = { 'side-toggle': 'nav.public', 'btn-prev': 'view.prevWeek', 'btn-next': 'view.nextWeek', 'view-date': 'view.pickDate' };
     Object.keys(titles).forEach(id => { const el = $(id); if (el) el.title = T(titles[id]); });
     const lt = $('loading-text'); if (lt && !$('loading').classList.contains('open')) lt.textContent = T('common.loading');
     updateSpaceTabs();
     initFilterOptions();
+  }
+
+  // 个人课表的筛选依据：班级或教师（二选一，取决于 defaultBy）
+  function personalKey() {
+    const p = S.profile;
+    return (p.defaultBy === 'teacher' ? p.teacher : p.group) || '';
   }
 
   // 左侧「公共 / 个人」页签高亮：mine 与 onlyMine 同步
@@ -563,18 +577,15 @@
     const mine = S.space === 'mine';
     const cb = $('f-onlymine'); if (cb) cb.checked = mine;
     const note = $('info-note-text');
-    if (note) note.textContent = T(mine ? 'page.needLogin' : 'page.info');
+    if (note) note.textContent = T(!mine ? 'page.info'
+      : (!S.user ? 'detail.needLogin'
+        : (personalKey() ? 'page.mine' : 'page.mineSetup')));
   }
 
   function setSpace(space) {
-    if (space === 'mine') {
-      if (!S.user) { needLogin(); return; }
-      if (!S.profile.group && !S.profile.teacher) {
-        toast(T('page.needLogin'), 'error');
-        openProfile();
-        return;
-      }
-    }
+    // 未登录才要求登录；已登录即使还没设置班级/教师，也直接切到个人页签，
+    // 只显示个人日程，并在提示区引导去设置，不再误报"需要先登录"也不强制弹窗。
+    if (space === 'mine' && !S.user) { needLogin(); return; }
     S.space = space;
     S.filters.onlyMine = space === 'mine';
     writeStore('cm.filters', S.filters);
@@ -633,23 +644,23 @@
   function initFilterOptions() {
     const d = S.dict;
     S.filters.faculty = fillSelect('f-faculty', d.faculties || [], null, 'faculty');
-    S.filters.program = fillSelect('f-program', d.programs || [], null, 'program');
     S.filters.group = fillSelect('f-group', d.groups || [], null, 'group');
     S.filters.teacher = fillSelect('f-teacher', d.teachers || [], null, 'teacher');
-    S.filters.mode = fillSelect('f-mode', d.modes || [], modeLabel, 'mode');
     S.filters.subgroup = fillSelect('f-subgroup', (d.subgroups || []).filter(v => v !== '全部'), null, 'subgroup');
     S.filters.week = fillSelect('f-week', d.weeks || [], v => weekLabel(v) + ' · ' + v, 'week');
-    $('f-date').value = S.filters.date || '';
+    // 已移除的筛选项强制清空，避免历史保存值在后台继续生效
+    S.filters.program = ''; S.filters.mode = ''; S.filters.date = '';
     $('f-keyword').value = S.filters.keyword || '';
     $('f-onlymine').checked = !!S.filters.onlyMine && !!S.user;
   }
 
   function collectFilters() {
     S.filters = {
-      faculty: $('f-faculty').value, program: $('f-program').value,
+      faculty: $('f-faculty').value,
       group: $('f-group').value, teacher: $('f-teacher').value,
-      week: $('f-week').value, date: $('f-date').value,
-      mode: $('f-mode').value, subgroup: $('f-subgroup').value,
+      week: $('f-week').value,
+      subgroup: $('f-subgroup').value,
+      program: '', mode: '', date: '',   // 已移除的筛选项
       keyword: $('f-keyword').value.trim(), onlyMine: $('f-onlymine').checked && !!S.user
     };
   }
@@ -668,7 +679,6 @@
     const all = mergedEntries().filter(inScope);
     if (S.view === 'week') return all.filter(e => e._week === weekStart(S.anchor));
     if (S.view === 'day') return all.filter(e => e['日期'] === S.anchor);
-    if (S.view === 'month') return all.filter(e => String(e['日期']).slice(0, 7) === S.anchor.slice(0, 7));
     return all;
   }
 
@@ -736,28 +746,6 @@
       cardHtml(e) + '</div>').join('') + '</div>';
   }
 
-  function renderMonth(list) {
-    const first = parseDay(S.anchor.slice(0, 7) + '-01');
-    const gridStart = addDays(ymd(first), -((first.getDay() + 6) % 7));
-    let html = '<div class="month-grid">';
-    for (let i = 0; i < 7; i++) {
-      const d = addDays(gridStart, i);
-      html += '<div class="month-cell" style="min-height:auto;text-align:center"><div class="d">' +
-        esc(T('wd.' + weekdayOf(d))) + '</div></div>';
-    }
-    for (let i = 0; i < 42; i++) {
-      const day = addDays(gridStart, 7 + i);
-      const rows = list.filter(e => e['日期'] === day).sort((a, b) => a._start - b._start);
-      const other = day.slice(0, 7) !== S.anchor.slice(0, 7);
-      html += '<div class="month-cell' + (other ? ' other' : '') + (day === localToday() ? ' today' : '') + '">' +
-        '<div class="d" data-date="' + day + '" style="cursor:pointer">' + Number(day.slice(8)) + '</div>' +
-        rows.slice(0, 3).map(e => '<div class="month-dot' + (e._personal ? ' personal' : '') +
-          (e._event ? ' event' : '') + '" data-id="' + esc(e.id) + '">' + esc(displayCourse(e)) + '</div>').join('') +
-        (rows.length > 3 ? '<div class="month-dot">+' + (rows.length - 3) + '</div>' : '') + '</div>';
-    }
-    return html + '</div>';
-  }
-
   function renderList(list) {
     const rows = list.slice().sort((a, b) =>
       String(a['日期']).localeCompare(String(b['日期'])) || a._start - b._start);
@@ -793,7 +781,6 @@
     let title;
     if (S.view === 'week') title = weekLabel(S.anchor) + ' · ' + ws + ' — ' + addDays(ws, 6);
     else if (S.view === 'day') title = S.anchor + ' · ' + T('wd.long.' + weekdayOf(S.anchor));
-    else if (S.view === 'month') title = I18N.MONTHS[S.lang][parseDay(S.anchor).getMonth()] + ' ' + S.anchor.slice(0, 4);
     else title = T('view.count', { n: list.length });
     $('view-title').textContent = title;
     $('view-sub').textContent = T('view.count', { n: list.length }) + (S.localMode ? ' · data.js' : '');
@@ -802,34 +789,192 @@
 
     let html;
     if (!list.length) {
-      const hasFilter = S.filters.date || S.filters.keyword || S.filters.group ||
-        S.filters.teacher || S.filters.program || S.filters.mode || S.filters.week;
+      const hasFilter = S.filters.keyword || S.filters.group ||
+        S.filters.teacher || S.filters.week || S.filters.faculty || S.filters.subgroup;
       const noKey = S.view === 'day' ? 'view.noCoursesDay'
         : (S.view === 'list' ? 'view.noMatch' : 'view.noCourses');
       html = emptyHtml(hasFilter ? T('view.noMatch') : T(noKey));
     } else if (S.view === 'week') html = renderWeek(list);
     else if (S.view === 'day') html = renderDay(list);
-    else if (S.view === 'month') html = renderMonth(list);
     else html = renderList(list);
     $('view-container').innerHTML = html;
   }
 
-  function exportCsv() {
+  /* ------------------------------------------------------------ 导出课表图片（纯 Canvas，无第三方依赖） */
+  function exportScheduleImage() {
     const list = rangeEntries().slice().sort((a, b) =>
       String(a['日期']).localeCompare(String(b['日期'])) || a._start - b._start);
     if (!list.length) { toast(T('view.noMatch'), 'error'); return; }
-    const cols = ['日期', '星期', '时间', '班级', '小组', '课程', '课程中文', '教师', '教室', '授课形式', '状态'];
-    const lines = [cols.join(',')];
-    list.forEach(e => lines.push([
-      e['日期'], T('wd.' + e._wd), e['时间'], e['班级'], e['小组'], displayCourse(e),
-      e._zh, e['教师'], e['教室'], modeLabel(e['授课形式']), statusLabel(e._status)
-    ].map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(',')));
-    const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'schedule-' + S.anchor + '.csv';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+
+    const FONT = '"Segoe UI", Arial, "Microsoft YaHei", sans-serif';
+    const C = {
+      surface: '#ffffff', line: '#e2e6ec', text: '#1b1f24', muted: '#667085',
+      yellow: '#ffd43b', yellowSoft: '#fff8db', blue: '#2a6fb0', blueSoft: '#eaf2fb', red: '#c0392b'
+    };
+    // 用离屏 canvas 测量文字宽度
+    const meas = document.createElement('canvas').getContext('2d');
+    function wrap(text, maxW, maxLines) {
+      const words = String(text == null ? '' : text).split(/\s+/).filter(Boolean);
+      const out = []; let cur = '';
+      for (const w of words) {
+        const t = cur ? cur + ' ' + w : w;
+        if (meas.measureText(t).width <= maxW) { cur = t; continue; }
+        if (cur) { out.push(cur); cur = w; } else { out.push(w); cur = ''; }
+        if (out.length >= maxLines) break;
+      }
+      if (cur && out.length < maxLines) out.push(cur);
+      if (out.length > maxLines) out.length = maxLines;
+      return out;
+    }
+    function rr(ctx, x, y, w, h, r) {
+      r = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    }
+    function measureCard(e, w) {
+      const inner = w - 22;
+      meas.font = '600 14px ' + FONT; const nl = wrap(displayCourse(e), inner, 3);
+      meas.font = '12px ' + FONT;
+      const sl = wrap([e['教师'], e['教室']].filter(Boolean).join(' · '), inner, 2);
+      meas.font = '11px ' + FONT; const tl = wrap(e['时间'] || '', inner, 2);
+      const h = 24 + nl.length * 18 + (sl.length ? 6 + sl.length * 16 : 0) + (tl.length ? 6 + tl.length * 14 : 0);
+      return { h, nl, sl, tl };
+    }
+    function paintCard(ctx, e, x, y, w, m) {
+      ctx.fillStyle = e._personal ? C.yellowSoft : C.surface;
+      rr(ctx, x, y, w, m.h, 8); ctx.fill();
+      ctx.strokeStyle = e._status === 'cancelled' ? '#e5b7b2' : C.line; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = e._personal ? '#e0a800' : C.blue;
+      rr(ctx, x, y + 8, 3, Math.max(4, m.h - 16), 1.5); ctx.fill();
+      let ty = y + 26;
+      ctx.fillStyle = C.text; ctx.font = '600 14px ' + FONT;
+      m.nl.forEach(l => { ctx.fillText(l, x + 11, ty); ty += 18; });
+      if (m.sl.length) {
+        ty += 2; ctx.fillStyle = C.muted; ctx.font = '12px ' + FONT;
+        m.sl.forEach(l => { ctx.fillText(l, x + 11, ty); ty += 16; });
+      }
+      if (m.tl.length) {
+        ty += 2; ctx.fillStyle = e._personal ? '#8a6d00' : C.blue; ctx.font = '11px ' + FONT;
+        m.tl.forEach(l => { ctx.fillText(l, x + 11, ty); ty += 14; });
+      }
+    }
+
+    // ---- 第一遍：按当前视图计算画布尺寸 ----
+    const view = S.view;
+    let W = 1480, H = 400, extra = null;
+    const PAD = 24, TOP = 104;
+    if (view === 'week') {
+      const gap = 10, colW = (W - PAD * 2 - gap * 6) / 7;
+      const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart(S.anchor), i));
+      const rowsByDay = days.map(d => list.filter(e => e['日期'] === d));
+      const metrics = rowsByDay.map(rows => rows.map(e => measureCard(e, colW - 12)));
+      const colH = metrics.map(ms => Math.max(110, 10 + ms.reduce((s, m) => s + m.h + 8, 0)));
+      extra = { colW, gap, days, rowsByDay, metrics, colH };
+      H = TOP + 48 + Math.max.apply(null, colH) + PAD;
+    } else if (view === 'day') {
+      W = 1000;
+      const rows = list.slice();
+      const cardW = W - PAD * 2 - 116;
+      const metrics = rows.map(e => measureCard(e, cardW));
+      extra = { rows, cardW, metrics };
+      H = TOP + 12 + metrics.reduce((s, m) => s + m.h + 10, 0) + PAD;
+    } else {
+      W = 1500;
+      const cap = 300;
+      extra = { rows: list.slice(0, cap), truncated: list.length > cap };
+      H = TOP + 38 + extra.rows.length * 32 + PAD + (extra.truncated ? 30 : 0);
+    }
+    H = Math.min(H, 16000);
+
+    // ---- 第二遍：绘制 ----
+    const dpr = 2;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = C.surface; ctx.fillRect(0, 0, W, H);
+
+    // 顶部标题
+    ctx.fillStyle = C.yellow; ctx.fillRect(0, 0, W, 6);
+    ctx.fillStyle = C.text; ctx.font = '700 24px ' + FONT;
+    const headTitle = (S.space === 'mine' ? T('space.mine') : T('page.schedule')) + ' · ' + weekLabel(S.anchor);
+    ctx.fillText(headTitle, PAD, 48);
+    ctx.fillStyle = C.muted; ctx.font = '13px ' + FONT;
+    const sub = (view === 'week' ? weekStart(S.anchor) + ' — ' + addDays(weekStart(S.anchor), 6) : S.anchor) +
+      ' · ' + T('view.count', { n: list.length });
+    ctx.fillText(sub, PAD, 74);
+    ctx.strokeStyle = C.line; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD, 92); ctx.lineTo(W - PAD, 92); ctx.stroke();
+
+    if (view === 'week') {
+      const { colW, gap, days, rowsByDay, metrics, colH } = extra;
+      const bandY = TOP, colTop = TOP + 48;
+      ctx.fillStyle = C.blueSoft; rr(ctx, PAD, bandY, W - PAD * 2, 40, 8); ctx.fill();
+      const maxH = Math.max.apply(null, colH);
+      for (let i = 0; i < 7; i++) {
+        const x = PAD + i * (colW + gap);
+        ctx.fillStyle = '#fafbfc'; rr(ctx, x, colTop, colW, maxH, 8); ctx.fill();
+        ctx.strokeStyle = C.line; ctx.stroke();
+        // 星期表头
+        ctx.fillStyle = i === 6 ? C.red : C.text;
+        ctx.font = '700 14px ' + FONT;
+        ctx.fillText(T('wd.' + weekdayOf(days[i])), x + 12, bandY + 26);
+        ctx.fillStyle = C.muted; ctx.font = '12px ' + FONT;
+        ctx.fillText(days[i].slice(5), x + colW - 46, bandY + 26);
+        // 课程卡片
+        let y = colTop + 10;
+        rowsByDay[i].forEach((e, j) => { paintCard(ctx, e, x + 6, y, colW - 12, metrics[i][j]); y += metrics[i][j].h + 8; });
+      }
+    } else if (view === 'day') {
+      const { rows, cardW, metrics } = extra;
+      let y = TOP + 8;
+      rows.forEach((e, i) => {
+        ctx.fillStyle = C.blue; ctx.font = '600 13px ' + FONT;
+        ctx.fillText(e['时间'] || '', PAD, y + 24);
+        paintCard(ctx, e, PAD + 116, y, cardW, metrics[i]);
+        y += metrics[i].h + 10;
+      });
+    } else {
+      const cols = [
+        [T('detail.date'), 110], [T('detail.weekday'), 60], [T('detail.time'), 110],
+        [T('detail.group'), 160], [T('detail.nameRu'), 330], [T('detail.teacher'), 150],
+        [T('detail.room'), 130], [T('detail.status'), 90]
+      ];
+      const tableX = PAD, tableY = TOP, rowH = 32;
+      ctx.fillStyle = C.blueSoft; ctx.fillRect(tableX, tableY, W - PAD * 2, 38);
+      ctx.font = '600 12px ' + FONT; ctx.fillStyle = C.text;
+      let cx = tableX;
+      cols.forEach(([label, w]) => { ctx.fillText(label, cx + 8, tableY + 25); cx += w; });
+      extra.rows.forEach((e, i) => {
+        const y = tableY + 38 + i * rowH;
+        if (i % 2 === 1) { ctx.fillStyle = '#fafbfc'; ctx.fillRect(tableX, y, W - PAD * 2, rowH); }
+        ctx.font = '12px ' + FONT; ctx.fillStyle = C.text;
+        cx = tableX;
+        const cells = [e['日期'], T('wd.' + e._wd), e['时间'], e['班级'], displayCourse(e),
+          e['教师'], e['教室'], statusLabel(e._status)];
+        cells.forEach((v, j) => {
+          const w = cols[j][1];
+          ctx.save(); ctx.beginPath(); ctx.rect(cx, y, w, rowH); ctx.clip();
+          ctx.fillText(String(v == null ? '' : v), cx + 8, y + 21);
+          ctx.restore(); cx += w;
+        });
+      });
+      if (extra.truncated) {
+        ctx.fillStyle = C.muted; ctx.font = '12px ' + FONT;
+        ctx.fillText(T('export.limit', { n: 300 }), PAD, tableY + 38 + extra.rows.length * rowH + 22);
+      }
+    }
+
+    canvas.toBlob(blob => {
+      if (!blob) { toast(T('export.fail'), 'error'); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'schedule-' + S.anchor + '.png'; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast(T('export.done'), 'ok');
+    }, 'image/png');
   }
 
   /* ------------------------------------------------------------ 弹窗通用 */
@@ -932,7 +1077,7 @@
       catch (e) { toast(e.message, 'error'); return; }
     }
     S.lang = p.lang; localStorage.setItem('cm.lang', p.lang);
-    applyI18n(); hideDlg('dlg-profile'); render();
+    applyI18n(); hideDlg('dlg-profile'); updateSpaceTabs(); render();
     toast(T('profile.saved'), 'ok');
   }
 
@@ -1571,11 +1716,10 @@
     $('btn-logout').onclick = () => { if (S.firebaseReady) FB.signOut(auth); };
     $('btn-profile').onclick = openProfile;
 
-    ['f-faculty', 'f-program', 'f-group', 'f-teacher', 'f-week', 'f-date', 'f-mode', 'f-subgroup'].forEach(id => {
+    ['f-faculty', 'f-group', 'f-teacher', 'f-week', 'f-subgroup'].forEach(id => {
       $(id).onchange = () => {
         collectFilters();
         if (id === 'f-week' && S.filters.week) S.anchor = S.filters.week;
-        if (id === 'f-date' && S.filters.date) S.anchor = S.filters.date;
         render();
       };
     });
@@ -1595,7 +1739,7 @@
       initFilterOptions(); render();
     };
     $('btn-save-filters').onclick = saveFilters;
-    $('btn-export').onclick = exportCsv;
+    $('btn-export').onclick = exportScheduleImage;
     $('btn-print').onclick = () => window.print();
 
     $('btn-prev').onclick = () => shiftAnchor(-1);
@@ -1603,7 +1747,7 @@
     $('view-date').onchange = e => {
       if (!e.target.value) return;
       S.anchor = e.target.value;
-      S.filters.date = ''; $('f-date').value = '';
+      S.filters.date = '';
       render();
     };
 
@@ -1640,11 +1784,6 @@
     $('view-container').addEventListener('click', e => {
       const act = e.target.closest('[data-act]');
       if (act) { e.stopPropagation(); handleAction(act.dataset.act, act.dataset.id, act); return; }
-      const dateEl = e.target.closest('[data-date]');
-      if (dateEl) {
-        S.anchor = dateEl.dataset.date; S.view = 'day';
-        updateChrome(); render(); return;
-      }
       const idEl = e.target.closest('[data-id]');
       if (idEl) openDetail(idEl.dataset.id);
     });
@@ -1680,11 +1819,7 @@
   }
 
   function shiftAnchor(dir) {
-    if (S.view === 'month') {
-      const d = parseDay(S.anchor);
-      d.setDate(1); d.setMonth(d.getMonth() + dir);
-      S.anchor = ymd(d);
-    } else S.anchor = addDays(S.anchor, dir * 7);
+    S.anchor = addDays(S.anchor, dir * 7);
     render();
   }
 
