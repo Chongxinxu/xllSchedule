@@ -3,7 +3,7 @@
 <meta charset="UTF-8" data-page-node-id="7rZMkSxGgvaZJpoPkMqCDE">
 <meta name="viewport" content="width=device-width, initial-scale=1" data-page-node-id="qKBAH8yaGt4yOKx2SGE3U1">
 <title>课程管理系统 · Система расписания</title>
-<link rel="stylesheet" href="styles.css?v=20261119i" data-page-node-id="IVDskekBwsOth9tisqTpVD">
+<link rel="stylesheet" href="styles.css?v=20261119j" data-page-node-id="IVDskekBwsOth9tisqTpVD">
 <style id="__dm_no_drag_style__">* { -webkit-user-drag: none !important; }</style><style id="__dm_bindable_badge_style__">[data-sp-bindable="database"]{outline:1px dashed #0088ff;outline-offset:2px;border-radius:4px;}[data-sp-bindable="database"] *{pointer-events:none !important;transition:none !important;animation:none !important;}[data-sp-bindable="database"]{transition:none !important;animation:none !important;}</style></head>
 <body data-page-node-id="Apd1VCDBw1rInLzy4wUm0V" style="position: relative;">
 
@@ -87,11 +87,12 @@
     </div>
   </div>
 
-  <div class="meta-row public-only">
-    <span class="chip" id="meta-publish">最后发布：—</span>
-    <span class="chip" id="meta-count">共 0 条</span>
+  <div class="meta-row">
+    <span class="chip public-only" id="meta-publish">最后发布：—</span>
+    <span class="chip public-only" id="meta-count">共 0 条</span>
     <span class="chip yellow" id="meta-week">教学周</span>
-    <span class="chip" id="meta-mode">只读访客</span>
+    <span class="chip public-only" id="meta-mode">只读访客</span>
+    <span class="chip blue mine-only hidden" id="meta-myclass">我的班级：—</span>
   </div>
 
   <div class="controls-row">
@@ -109,6 +110,7 @@
 
   <div class="toolbar" id="toolbar">
     <label class="public-only"><span id="lb-faculty">学院</span><select id="f-faculty"></select></label>
+    <label class="mine-only hidden"><span id="lb-mine-group">我的班级</span><select id="mine-group"></select></label>
     <label class="public-only"><span id="lb-group">班级</span><select id="f-group"></select></label>
     <label class="public-only"><span id="lb-teacher">教师</span><select id="f-teacher"></select></label>
     <label class="public-only"><span id="lb-week">教学周</span><select id="f-week"></select></label>
@@ -237,10 +239,10 @@
 <div id="toast" data-page-node-id="UkiQYy8LUmxt1wXDtokRi6"></div>
 <div id="loading" data-page-node-id="qNliR6qXMhYWdEQtiZN0Zu"><div class="spinner" data-page-node-id="6BRQRXdcC1NmZUnqxMYMw9"></div><div class="txt" id="loading-text" data-page-node-id="ICQ4MDgr653jqsZGreA8Mb">正在加载…</div></div>
 
-<script src="i18n.js?v=20261119i"></script>
-<script src="docx.js?v=20261119i"></script>
-<script src="data.js?v=20261119i"></script>
-<script src="app.js?v=20261119i"></script>
+<script src="i18n.js?v=20261119j"></script>
+<script src="docx.js?v=20261119j"></script>
+<script src="data.js?v=20261119j"></script>
+<script src="app.js?v=20261119j"></script>
 
 
 </body></html>

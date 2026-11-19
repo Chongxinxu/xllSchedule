@@ -709,6 +709,7 @@
     'tab-week': 'nav.week', 'tab-day': 'nav.day', 'tab-list': 'nav.list',
     'btn-login': 'nav.login', 'btn-profile': 'nav.profile', 'btn-logout': 'nav.logout',
     'lb-faculty': 'filter.faculty', 'lb-group': 'filter.group',
+    'lb-mine-group': 'filter.myClass',
     'lb-teacher': 'filter.teacher', 'lb-week': 'filter.week',
     'lb-subgroup': 'filter.subgroup', 'lb-onlymine': 'filter.onlyMine',
     'btn-reset': 'common.reset', 'btn-save-filters': 'filter.save',
@@ -761,6 +762,8 @@
     const titles = { 'side-toggle': 'nav.public', 'btn-prev': 'view.prevWeek', 'btn-next': 'view.nextWeek', 'view-date': 'view.pickDate' };
     Object.keys(titles).forEach(id => { const el = $(id); if (el) el.title = T(titles[id]); });
     const lt = $('loading-text'); if (lt && !$('loading').classList.contains('open')) lt.textContent = T('common.loading');
+    const mc = $('meta-myclass');
+    if (mc) { const g = personalKey(); mc.textContent = g ? T('view.myClass', { g }) : T('view.myClassNone'); }
     updateSpaceTabs();
     initFilterOptions();
   }
@@ -776,8 +779,10 @@
     document.querySelectorAll('.side-item[data-space]').forEach(btn =>
       btn.classList.toggle('active', btn.dataset.space === S.space));
     const mine = S.space === 'mine';
-    // 个人课表隐藏全部筛选控件；公共筛选条件仍保留在 S.filtersPublic 中
+    // 个人课表隐藏公共筛选控件；公共筛选条件仍保留在 S.filtersPublic 中
     document.querySelectorAll('.public-only').forEach(el => el.classList.toggle('hidden', mine));
+    // 「我的班级」筛选器与信息只在个人课表显示
+    document.querySelectorAll('.mine-only').forEach(el => el.classList.toggle('hidden', !mine));
     const cb = $('f-onlymine'); if (cb) cb.checked = mine;
     // 「恢复已删课程」已按要求隐藏，保留底层逻辑备用
     const restoreBtn = $('btn-restore');
@@ -837,6 +842,9 @@
     $('meta-publish').textContent = last ? T('view.lastPublish', { v: fmtIso(last.publishedAt) }) : T('view.neverPublish');
     $('meta-count').textContent = T('view.count', { n: S.entries.filter(e => e._active).length });
     $('meta-week').textContent = weekLabel(S.anchor);
+    const myCls = personalKey();
+    $('meta-myclass').textContent = myCls
+      ? T('view.myClass', { g: myCls }) : T('view.myClassNone');
     document.querySelectorAll('#view-tabs button').forEach(btn =>
       btn.classList.toggle('active', btn.dataset.view === S.view));
   }
@@ -862,6 +870,8 @@
     fillSelect('f-teacher', d.teachers || [], null, 'teacher', src);
     fillSelect('f-subgroup', (d.subgroups || []).filter(v => v !== '全部'), null, 'subgroup', src);
     fillSelect('f-week', d.weeks || [], v => weekLabel(v) + ' · ' + v, 'week', src);
+    // 「我的班级」取个人档案里的班级，与公共筛选完全隔离
+    fillSelect('mine-group', d.groups || [], null, 'group', S.profile);
     // 已移除的筛选项强制清空，避免历史保存值在后台继续生效
     src.program = ''; src.mode = ''; src.date = '';
     $('f-keyword').value = src.keyword || '';
@@ -1348,6 +1358,28 @@
     S.lang = p.lang; localStorage.setItem('cm.lang', p.lang);
     applyI18n(); hideDlg('dlg-profile'); updateSpaceTabs(); render();
     toast(T('profile.saved'), 'ok');
+  }
+
+  // 写入「我的班级」到个人档案：只更新 group/defaultBy。
+  // 用 setDoc+merge：老用户局部更新，新用户（还没有 users 文档）也能建档。
+  async function persistMyClass(group) {
+    S.profile.group = group || '';
+    S.profile.defaultBy = 'group';
+    if (!S.cloudOK || !S.user) return;
+    await FB.setDoc(FB.doc(db, 'users', S.user.uid), {
+      group: S.profile.group, defaultBy: 'group',
+      uid: S.user.uid, email: S.user.email || '',
+      role: S.profile.role === 'teacher' ? 'teacher' : 'student'
+    }, { merge: true });
+  }
+
+  // 个人课表里设置「我的班级」：按班级筛选个人课程
+  async function setMyClass(group) {
+    if (!S.user) return needLogin();
+    try { await persistMyClass(group); }
+    catch (e) { toast(e.message, 'error'); return; }
+    initFilterOptions(); render();
+    toast(group ? T('myClass.set', { g: group }) : T('myClass.cleared'), 'ok');
   }
 
   /* ------------------------------------------------------------ 课程详情 */
@@ -1839,8 +1871,19 @@
         ok++;
       });
       items.forEach(it => { S.overrides[it.entryId] = { id: it.key, ...it.rec }; });
+      // 按用户所选班级保存时，把这个班级记成「我的班级」，个人课表即可显示对应课程
+      const picked = S.filters.group || '';
+      const savedGroups = uniq(items.map(it => {
+        const e = S.entries.find(x => x.id === it.entryId);
+        return e ? e['班级'] : '';
+      }));
+      const myClass = picked || (savedGroups.length === 1 ? savedGroups[0] : '');
+      if (myClass && myClass !== S.profile.group) {
+        try { await persistMyClass(myClass); }
+        catch (e) { console.warn('记录我的班级失败：', e); }
+      }
       toast(T('saveSchedule.done', { n: ok }), 'ok');
-      render();
+      initFilterOptions(); render();
     } catch (e) { toast(e.message, 'error'); }
   }
 
@@ -2165,6 +2208,7 @@
       };
     });
     $('f-keyword').oninput = () => { collectFilters(); render(); };
+    $('mine-group').onchange = () => setMyClass($('mine-group').value);
     $('f-onlymine').onchange = () => setSpace($('f-onlymine').checked ? 'mine' : 'public');
     $('btn-reset').onclick = () => {
       if (S.space === 'mine') return;
