@@ -54,6 +54,7 @@
 
   const S = {
     lang: localStorage.getItem('cm.lang') || 'zh',
+    theme: localStorage.getItem('cm.theme') || 'abyss',
     view: window.innerWidth <= 760 ? 'day' : 'week',
     anchor: '',
     user: null,
@@ -765,6 +766,14 @@
     const lt = $('loading-text'); if (lt && !$('loading').classList.contains('open')) lt.textContent = T('common.loading');
     const mc = $('meta-myclass');
     if (mc) { const g = personalKey(); mc.textContent = g ? T('view.myClass', { g }) : T('view.myClassNone'); }
+    $('theme-toggle').title = T('theme.toggle');
+    $('theme-title').textContent = T('theme.title');
+    const tab = $('theme-lb-abyss'); if (tab) tab.textContent = T('theme.abyss');
+    $('theme-lb-light').textContent = T('theme.light');
+    $('theme-lb-dark').textContent = T('theme.dark');
+    $('theme-lb-sepia').textContent = T('theme.sepia');
+    $('theme-lb-ocean').textContent = T('theme.ocean');
+    refreshCatSkin();
     updateSpaceTabs();
     initFilterOptions();
   }
@@ -782,6 +791,8 @@
     const mine = S.space === 'mine';
     // 个人课表隐藏公共筛选控件；公共筛选条件仍保留在 S.filtersPublic 中
     document.querySelectorAll('.public-only').forEach(el => el.classList.toggle('hidden', mine));
+    // 个人视图 banner 收缩：猫咪与教学周徽标挨在一起，不留大片空白
+    const banner = $('week-banner'); if (banner) banner.classList.toggle('compact', mine);
     // 「我的班级」筛选器与信息只在个人课表显示
     document.querySelectorAll('.mine-only').forEach(el => el.classList.toggle('hidden', !mine));
     const cb = $('f-onlymine'); if (cb) cb.checked = mine;
@@ -795,6 +806,70 @@
     if (note) note.textContent = T(!mine ? 'page.info'
       : (!S.user ? 'detail.needLogin'
         : (personalKey() ? 'page.mine' : 'page.mineSetup')));
+  }
+
+  // 右下角浮动猫咪：可拖动（位置存本机）、点击有缩放反馈并随机切换气泡喵语
+  function initFloatCat() {
+    const cat = document.querySelector('.float-cat');
+    if (!cat || cat._dragReady) return;
+    cat._dragReady = true;
+    const KEY = 'cm.floatCatPos';
+    // 恢复上次位置（右/下偏移量，px）
+    try {
+      const p = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (p && typeof p.right === 'number' && typeof p.bottom === 'number') {
+        cat.style.right = p.right + 'px'; cat.style.bottom = p.bottom + 'px';
+      }
+    } catch (e) { /* 忽略损坏数据 */ }
+
+    let dragging = false, moved = false, sx = 0, sy = 0, sr = 0, sb = 0;
+    const clamp = (v, max) => Math.max(4, Math.min(v, max));
+    cat.addEventListener('pointerdown', e => {
+      if (e.button != null && e.button !== 0) return;
+      const cs = getComputedStyle(cat);
+      sr = parseFloat(cs.right) || 0; sb = parseFloat(cs.bottom) || 0;
+      sx = e.clientX; sy = e.clientY; dragging = true; moved = false;
+      cat.classList.add('dragging');
+      try { cat.setPointerCapture(e.pointerId); } catch (err) { /* 不支持则忽略 */ }
+      e.preventDefault();
+    });
+    cat.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+      if (!moved) return;
+      const w = window.innerWidth, h = window.innerHeight;
+      const cw = cat.offsetWidth || 104, ch = cat.offsetHeight || 140;
+      cat.style.right = clamp(sr - dx, w - cw - 4) + 'px';
+      cat.style.bottom = clamp(sb - dy, h - ch - 4) + 'px';
+    });
+    const endDrag = e => {
+      if (!dragging) return;
+      dragging = false;
+      cat.classList.remove('dragging');
+      try { cat.releasePointerCapture && cat.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      if (moved) {
+        try {
+          localStorage.setItem(KEY, JSON.stringify({
+            right: parseFloat(cat.style.right) || 0,
+            bottom: parseFloat(cat.style.bottom) || 0
+          }));
+        } catch (err) { /* 无痕模式 */ }
+      } else {
+        // 点击反馈：缩放动画 + 随机喵语
+        cat.classList.remove('pop'); void cat.offsetWidth; cat.classList.add('pop');
+        setTimeout(() => cat.classList.remove('pop'), 340);
+        const bubble = $('float-bubble');
+        if (bubble) {
+          const keys = ['cat.tap1', 'cat.tap2', 'cat.tap3', 'cat.tap4', 'cat.tap5'];
+          bubble.textContent = T(keys[Math.floor(Math.random() * keys.length)]);
+          clearTimeout(bubble._tapTimer);
+          bubble._tapTimer = setTimeout(() => { bubble.textContent = T('cat.bubble'); }, 2200);
+        }
+      }
+    };
+    cat.addEventListener('pointerup', endDrag);
+    cat.addEventListener('pointercancel', endDrag);
   }
 
   function setSpace(space) {
@@ -813,6 +888,42 @@
 
   function openSidebar() { S.sidebarOpen = true; $('sidebar').classList.add('open'); }
   function closeSidebar() { S.sidebarOpen = false; $('sidebar').classList.remove('open'); }
+
+  // 猫咪皮肤装饰：主题条 / 浮动气泡的文案与图片，随语言和皮肤刷新
+  function refreshCatSkin() {
+    const THEME_CAT = {
+      abyss: { cat: 'cat-abyssinian-blue.png' },
+      light: { cat: 'cat-maine.png' },
+      dark: { cat: 'cat-cow.png' },
+      sepia: { cat: 'cat-tortie.png' },
+      ocean: { cat: 'cat-russian-blue.png' }
+    };
+    const tc = THEME_CAT[S.theme] || THEME_CAT.abyss;
+    const bubble = $('float-bubble');
+    if (bubble) bubble.textContent = T('cat.bubble');
+    document.querySelectorAll('#title-cat, #wb-cat, #float-cat-img')
+      .forEach(img => { if (img) img.src = 'assets/' + tc.cat; });
+    const wbWeek = $('wb-week'); if (wbWeek) wbWeek.textContent = weekLabel(S.anchor);
+  }
+
+  // 界面皮肤：data-theme 切换整套 CSS 变量，选择存本机。改动仅在本地迭代，不推送线上。
+  const THEMES = ['abyss', 'light', 'dark', 'sepia', 'ocean'];
+  function applyTheme() {
+    if (THEMES.indexOf(S.theme) < 0) S.theme = 'abyss';
+    document.documentElement.setAttribute('data-theme', S.theme);
+    document.querySelectorAll('.theme-opt').forEach(btn =>
+      btn.classList.toggle('active', btn.dataset.theme === S.theme));
+    refreshCatSkin();
+  }
+  function setTheme(name) {
+    if (THEMES.indexOf(name) < 0) return;
+    S.theme = name;
+    try { localStorage.setItem('cm.theme', name); } catch (e) { /* 无痕模式 */ }
+    applyTheme();
+    closeThemeMenu();
+  }
+  function closeThemeMenu() { const m = $('theme-menu'); if (m) m.classList.add('hidden'); }
+  function toggleThemeMenu() { const m = $('theme-menu'); if (m) m.classList.toggle('hidden'); }
 
   function switchLang(lang) {
     S.lang = lang;
@@ -842,7 +953,8 @@
     const last = S.versions.slice().sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)))[0];
     $('meta-publish').textContent = last ? T('view.lastPublish', { v: fmtIso(last.publishedAt) }) : T('view.neverPublish');
     $('meta-count').textContent = T('view.count', { n: S.entries.filter(e => e._active).length });
-    $('meta-week').textContent = weekLabel(S.anchor);
+    const metaWeekEl = $('meta-week'); if (metaWeekEl) metaWeekEl.textContent = weekLabel(S.anchor);
+    const wbWeekEl = $('wb-week'); if (wbWeekEl) wbWeekEl.textContent = weekLabel(S.anchor);
     const myCls = personalKey();
     $('meta-myclass').textContent = myCls
       ? T('view.myClass', { g: myCls }) : T('view.myClassNone');
@@ -952,9 +1064,11 @@
     return String(e['课程'] || '').replace(/\s*Группа\s+[АБ]\s*/gi, ' ').replace(/\s+/g, ' ').trim();
   }
 
+
   function cardHtml(e, compact) {
-    if (e['课程'] === 'Нет занятий' && !e._saved) {
-      return '<div class="no-class" data-id="' + esc(e.id) + '">' + esc(T('card.noClass')) + '</div>';
+    if (e['课程'] === 'Нет занятий') {
+      return '<div class="no-class' + (compact ? ' compact' : '') + '" data-id="' + esc(e.id) + '">' +
+        PAW_SVG + '<span>' + esc(T('card.noClass')) + '</span></div>';
     }
     const cls = ['card'];
     // 仅真正改过（或有备注）的课程用黄色强调；单纯「保存课表」保持官方样式
@@ -991,9 +1105,37 @@
     return html + '</div>';
   }
 
-  function emptyHtml(msg) {
-    return '<div class="empty-state"><strong>' + esc(msg) + '</strong>' +
-      esc(T('view.noMatch')) + '</div>';
+  const PAW_SVG =
+    '<svg class="empty-paw" viewBox="0 0 40 34" fill="currentColor" aria-hidden="true">' +
+      '<g transform="translate(1 1)">' +
+        '<ellipse cx="7" cy="9" rx="2.5" ry="3.2" transform="rotate(-20 7 9)"/>' +
+        '<ellipse cx="14" cy="5.5" rx="2.6" ry="3.4"/>' +
+        '<ellipse cx="21.5" cy="5.5" rx="2.6" ry="3.4"/>' +
+        '<ellipse cx="28.5" cy="9" rx="2.5" ry="3.2" transform="rotate(20 28.5 9)"/>' +
+        '<path d="M17.5 12C21 10 26 11 28 13.5 30.5 16.5 29 20 25.5 21 23 21.8 21.5 20.8 19.5 20.5 17.5 20.2 15.5 21 14 19.5 11 17 13 13.5 17.5 12Z"/>' +
+      '</g>' +
+      '<g transform="translate(16 14) scale(0.72)" opacity="0.85">' +
+        '<ellipse cx="7" cy="9" rx="2.5" ry="3.2" transform="rotate(-20 7 9)"/>' +
+        '<ellipse cx="14" cy="5.5" rx="2.6" ry="3.4"/>' +
+        '<ellipse cx="21.5" cy="5.5" rx="2.6" ry="3.4"/>' +
+        '<ellipse cx="28.5" cy="9" rx="2.5" ry="3.2" transform="rotate(20 28.5 9)"/>' +
+        '<path d="M17.5 12C21 10 26 11 28 13.5 30.5 16.5 29 20 25.5 21 23 21.8 21.5 20.8 19.5 20.5 17.5 20.2 15.5 21 14 19.5 11 17 13 17.5 12Z"/>' +
+      '</g>' +
+    '</svg>';
+
+  function emptyHtml(msg, compact) {
+    const sub = msg && msg !== T('card.noClass')
+      ? '<span class="empty-sub">' + esc(msg) + '</span>' : '';
+    return '<div class="empty-state' + (compact ? ' compact' : '') + '">' + PAW_SVG +
+      '<strong>' + esc(T('card.noClass')) + '</strong>' + sub + '</div>';
+  }
+
+  // 无课占位（Нет занятий，无时间）排到当天课程末尾，不混在前面
+  function isNoClass(e) { return e['课程'] === 'Нет занятий'; }
+  function sortByTime(a, b) {
+    const an = isNoClass(a), bn = isNoClass(b);
+    if (an !== bn) return an ? 1 : -1;
+    return a._start - b._start;
   }
 
   function renderWeek(list) {
@@ -1001,24 +1143,25 @@
     let html = '<div class="week-grid">';
     for (let i = 0; i < 7; i++) {
       const day = addDays(start, i), wd = weekdayOf(day);
-      const rows = list.filter(e => e['日期'] === day).sort((a, b) => a._start - b._start);
-      html += '<div class="day-col' + (day === localToday() ? ' today' : '') + '">' +
+      const rows = list.filter(e => e['日期'] === day).sort(sortByTime);
+      const empty = !rows.length;
+      html += '<div class="day-col' + (day === localToday() ? ' today' : '') + (empty ? ' is-empty' : '') + '">' +
         '<h3>' + esc(T('wd.' + wd)) + '<span>' + esc(day.slice(5)) + '</span></h3>' +
-        (rows.length ? rows.map(e => cardHtml(e)).join('') : '<div class="line" style="color:var(--muted)">—</div>') +
+        (empty ? emptyHtml('', true) : rows.map(e => cardHtml(e)).join('')) +
         '</div>';
     }
     return html + '</div>';
   }
 
   function renderDay(list) {
-    const rows = list.filter(e => e['日期'] === S.anchor).sort((a, b) => a._start - b._start);
+    const rows = list.filter(e => e['日期'] === S.anchor).sort(sortByTime);
     if (!rows.length) return emptyHtml(T('view.noCourses'));
     return '<div class="day-list">' + rows.map(e => cardHtml(e)).join('') + '</div>';
   }
 
   function renderList(list) {
     const rows = list.slice().sort((a, b) =>
-      String(a['日期']).localeCompare(String(b['日期'])) || a._start - b._start);
+      String(a['日期']).localeCompare(String(b['日期'])) || sortByTime(a, b));
     if (!rows.length) return emptyHtml(T('view.noMatch'));
     const head = ['detail.date', 'detail.weekday', 'detail.time', 'detail.group', 'detail.nameRu',
       'detail.teacher', 'detail.room', 'detail.mode', 'detail.status'];
@@ -1061,7 +1204,8 @@
       $('view-date').max = allDates[allDates.length - 1];
     }
     $('view-date').value = S.anchor;
-    $('meta-week').textContent = weekLabel(S.anchor);
+    const metaWeekEl2 = $('meta-week'); if (metaWeekEl2) metaWeekEl2.textContent = weekLabel(S.anchor);
+    const wbWeekEl2 = $('wb-week'); if (wbWeekEl2) wbWeekEl2.textContent = weekLabel(S.anchor);
 
     let html;
     if (!list.length) {
@@ -1079,7 +1223,7 @@
   /* ------------------------------------------------------------ 导出课表图片（纯 Canvas，无第三方依赖） */
   function exportScheduleImage() {
     const list = rangeEntries().slice().sort((a, b) =>
-      String(a['日期']).localeCompare(String(b['日期'])) || a._start - b._start);
+      String(a['日期']).localeCompare(String(b['日期'])) || sortByTime(a, b));
     if (!list.length) { toast(T('view.noMatch'), 'error'); return; }
 
     const FONT = '"Segoe UI", Arial, "Microsoft YaHei", sans-serif';
@@ -1839,18 +1983,27 @@
     } catch (e) { toast(e.message, 'error'); }
   }
 
-  // 保存课表：把当前视图里可见的公共课程整批写入个人课表（userScheduleOverrides），需登录
+  // 保存课表：把当前视图里可见的公共课程整批写入个人课表（userScheduleOverrides），需登录。
+  // 再次保存会用当前视图覆盖之前的课表；两次操作之间加冷却，避免连点/重复提交。
+  let saveScheduleBusy = false;
+  const SAVE_COOLDOWN_MS = 3000;
   async function saveScheduleToMine() {
     if (!S.user) return needLogin();
     if (!S.cloudOK) { toast(T('admin.offline'), 'error'); return; }
-    const list = rangeEntries().filter(e => !e._event && !e._saved);
-    if (!list.length) { toast(T('saveSchedule.empty'), 'error'); return; }
-    // 已存在且未隐藏的覆盖不重复写入；被「清空本周」隐藏过（deleted:true）的可以重新保存
+    if (saveScheduleBusy) return;
+    saveScheduleBusy = true;
+    const btn = $('btn-save-schedule');
+    if (btn) { btn.classList.add('cooldown'); btn.disabled = true; }
+    const release = () => setTimeout(() => {
+      saveScheduleBusy = false;
+      if (btn) { btn.classList.remove('cooldown'); btn.disabled = false; }
+    }, SAVE_COOLDOWN_MS);
+
+    // 不排除已保存的课程——再次点击时用当前视图重新覆盖（保留手动改过的字段）
+    const list = rangeEntries().filter(e => !e._event);
+    if (!list.length) { toast(T('saveSchedule.empty'), 'error'); release(); return; }
     const now = nowIso();
-    const items = list.filter(e => {
-      const ov = S.overrides[e.id];
-      return !ov || ov.deleted;
-    }).map(e => {
+    const items = list.map(e => {
       const old = S.overrides[e.id] || {};
       return {
         entryId: e.id,
@@ -1862,7 +2015,6 @@
         }
       };
     });
-    if (!items.length) { toast(T('saveSchedule.already'), 'ok'); return; }
     let ok = 0;
     try {
       await chunkedBatch(items, (batch, it) => {
@@ -1884,6 +2036,7 @@
       toast(T('saveSchedule.done', { n: ok }), 'ok');
       initFilterOptions(); render();
     } catch (e) { toast(e.message, 'error'); }
+    release();
   }
 
   // 恢复已删课程：列出所有被删除的个人覆盖，可逐条恢复（即便课程已不在课表中显示）
@@ -2174,6 +2327,7 @@
 
   /* ------------------------------------------------------------ 事件绑定 */
   function bindEvents() {
+    initFloatCat();
     // 实时监听断线或休眠期间可能漏掉推送；切回页面时补一次读取，保证跨设备一致
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState !== 'visible' || !S.cloudOK || !S.firebaseReady) return;
@@ -2195,6 +2349,10 @@
 
     $('lang-zh').onclick = () => switchLang('zh');
     $('lang-ru').onclick = () => switchLang('ru');
+    $('theme-toggle').onclick = e => { e.stopPropagation(); toggleThemeMenu(); };
+    $('theme-menu').onclick = e => e.stopPropagation();
+    document.querySelectorAll('.theme-opt').forEach(btn => btn.onclick = () => setTheme(btn.dataset.theme));
+    document.addEventListener('click', closeThemeMenu);
     $('btn-login').onclick = () => openAuth('login');
     $('btn-logout').onclick = () => { if (S.firebaseReady) FB.signOut(auth); };
     $('btn-profile').onclick = openProfile;
@@ -2391,6 +2549,7 @@
       }
     } catch (e) { /* 非浏览器环境 */ }
     S.space = 'public';   // 每次进入先回到公共课表；个人页签需手动切换并登录
+    applyTheme();
     applyI18n();
     bindEvents();
     loadLocalData(false);

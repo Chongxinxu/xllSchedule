@@ -3,7 +3,7 @@
 <meta charset="UTF-8" data-page-node-id="7rZMkSxGgvaZJpoPkMqCDE">
 <meta name="viewport" content="width=device-width, initial-scale=1" data-page-node-id="qKBAH8yaGt4yOKx2SGE3U1">
 <title>课程管理系统 · Система расписания</title>
-<link rel="stylesheet" href="styles.css?v=20261119p" data-page-node-id="IVDskekBwsOth9tisqTpVD">
+<link rel="stylesheet" href="styles.css?v=20261119r" data-page-node-id="IVDskekBwsOth9tisqTpVD">
 <style id="__dm_no_drag_style__">* { -webkit-user-drag: none !important; }</style><style id="__dm_bindable_badge_style__">[data-sp-bindable="database"]{outline:1px dashed #0088ff;outline-offset:2px;border-radius:4px;}[data-sp-bindable="database"] *{pointer-events:none !important;transition:none !important;animation:none !important;}[data-sp-bindable="database"]{transition:none !important;animation:none !important;}</style></head>
 <body data-page-node-id="Apd1VCDBw1rInLzy4wUm0V" style="position: relative;">
 
@@ -13,7 +13,7 @@
 <aside class="sidebar" id="sidebar">
   <div class="side-brand">
     <div class="side-emblem" aria-hidden="true">
-      <img src="mgu-logo.png?v=20261119p" alt="МГУ" width="46" height="40">
+      <img src="mgu-logo.png?v=20261119r" alt="МГУ" width="46" height="40">
     </div>
     <div class="side-brand-txt">
       <strong id="side-brand-1">ВШУ МГУ</strong>
@@ -69,6 +69,19 @@
     <button id="lang-zh" class="active">中</button>
     <button id="lang-ru">RU</button>
   </div>
+  <div class="theme-switch hidden" id="theme-switch">
+    <button class="theme-toggle" id="theme-toggle" title="界面皮肤">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.9 1.8-1.9 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H16a5 5 0 0 0 5-5c0-3.9-4-7-9-7z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="7.5" cy="11.5" r="1.1" fill="currentColor"/><circle cx="10" cy="7.5" r="1.1" fill="currentColor"/><circle cx="15" cy="7.8" r="1.1" fill="currentColor"/></svg>
+    </button>
+    <div class="theme-menu hidden" id="theme-menu">
+      <div class="theme-menu-title" id="theme-title">界面皮肤</div>
+      <button class="theme-opt" data-theme="abyss"><span class="sw" style="background:linear-gradient(135deg,#f2f7fb 50%,#5b7fa6 50%)"></span><span id="theme-lb-abyss">阿比蓝</span><span class="theme-check">✓</span></button>
+      <button class="theme-opt" data-theme="light"><span class="sw" style="background:linear-gradient(135deg,#f5f6f8 50%,#ffd43b 50%)"></span><span id="theme-lb-light">浅色</span><span class="theme-check">✓</span></button>
+      <button class="theme-opt" data-theme="dark"><span class="sw" style="background:linear-gradient(135deg,#1c222b 50%,#f5c451 50%)"></span><span id="theme-lb-dark">深色</span><span class="theme-check">✓</span></button>
+      <button class="theme-opt" data-theme="sepia"><span class="sw" style="background:linear-gradient(135deg,#f4efe4 50%,#d9a520 50%)"></span><span id="theme-lb-sepia">护眼</span><span class="theme-check">✓</span></button>
+      <button class="theme-opt" data-theme="ocean"><span class="sw" style="background:linear-gradient(135deg,#e6eef6 50%,#1d6fa5 50%)"></span><span id="theme-lb-ocean">海洋蓝</span><span class="theme-check">✓</span></button>
+    </div>
+  </div>
   <button class="primary-btn" id="btn-login">登录 / 注册</button>
 </header>
 
@@ -78,21 +91,28 @@
 
   <div class="page-head">
     <div>
-      <h2 id="page-title">课程表</h2>
+      <div class="title-line">
+        <h2 id="page-title">课程表</h2>
+        <img class="title-cat" id="title-cat" src="assets/cat-abyssinian-blue.png" alt="">
+      </div>
       <div class="page-sub" id="page-sub">Высшая школа управления и инноваций МГУ</div>
-    </div>
-    <div class="info-note public-only" id="info-note">
-      <span class="info-ico">i</span>
-      <span id="info-note-text">查看大学全部课程。要看自己的课表，请选择专业和班级，或切换到"个人课程表"。</span>
     </div>
   </div>
 
   <div class="meta-row">
     <span class="chip public-only" id="meta-publish">最后发布：—</span>
     <span class="chip public-only" id="meta-count">共 0 条</span>
-    <span class="chip yellow" id="meta-week">教学周</span>
     <span class="chip public-only" id="meta-mode">只读访客</span>
     <span class="chip blue mine-only hidden" id="meta-myclass">我的班级：—</span>
+  </div>
+
+  <div class="week-banner" id="week-banner">
+    <img class="wb-cat" id="wb-cat" src="assets/cat-abyssinian-blue.png" alt="">
+    <div class="info-note public-only" id="info-note">
+      <span class="info-ico">i</span>
+      <span id="info-note-text">查看大学全部课程。要看自己的课表，请选择专业和班级，或切换到"个人课程表"。</span>
+    </div>
+    <span class="wb-badge" id="wb-week">第 47 教学周</span>
   </div>
 
   <div class="controls-row">
@@ -148,6 +168,11 @@
 </div><!-- /.wrap -->
 </div><!-- /.main-area -->
 </div><!-- /.app-shell -->
+
+<div class="float-cat" aria-hidden="true">
+  <div class="float-bubble" id="float-bubble">喵~ 今天也要加油哦</div>
+  <img id="float-cat-img" src="assets/cat-abyssinian-blue.png" alt="">
+</div>
 
 <div class="overlay" id="dlg-auth" data-page-node-id="UGkXdvtCrxN55o4TyEcLMz">
   <div class="dialog" data-page-node-id="miPdTQVj0o7OT7lX0UAaB0">
@@ -240,10 +265,10 @@
 <div id="toast" data-page-node-id="UkiQYy8LUmxt1wXDtokRi6"></div>
 <div id="loading" data-page-node-id="qNliR6qXMhYWdEQtiZN0Zu"><div class="spinner" data-page-node-id="6BRQRXdcC1NmZUnqxMYMw9"></div><div class="txt" id="loading-text" data-page-node-id="ICQ4MDgr653jqsZGreA8Mb">正在加载…</div></div>
 
-<script src="i18n.js?v=20261119p"></script>
-<script src="docx.js?v=20261119p"></script>
-<script src="data.js?v=20261119p"></script>
-<script src="app.js?v=20261119p"></script>
+<script src="i18n.js?v=20261119r"></script>
+<script src="docx.js?v=20261119r"></script>
+<script src="data.js?v=20261119r"></script>
+<script src="app.js?v=20261119r"></script>
 
 
 </body></html>
