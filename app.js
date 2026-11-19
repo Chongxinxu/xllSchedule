@@ -758,8 +758,9 @@
     document.title = T('app.title');
     $('btn-prev').textContent = T('view.prevWeek');
     $('btn-next').textContent = T('view.nextWeek');
+    $('btn-today').textContent = T('view.today');
     // 无文字的图标按钮靠 title 提供无障碍提示
-    const titles = { 'side-toggle': 'nav.public', 'btn-prev': 'view.prevWeek', 'btn-next': 'view.nextWeek', 'view-date': 'view.pickDate' };
+    const titles = { 'side-toggle': 'nav.public', 'btn-prev': 'view.prevWeek', 'btn-next': 'view.nextWeek', 'view-date': 'view.pickDate', 'btn-today': 'view.todayTitle' };
     Object.keys(titles).forEach(id => { const el = $(id); if (el) el.title = T(titles[id]); });
     const lt = $('loading-text'); if (lt && !$('loading').classList.contains('open')) lt.textContent = T('common.loading');
     const mc = $('meta-myclass');
@@ -2231,6 +2232,12 @@
 
     $('btn-prev').onclick = () => shiftAnchor(-1);
     $('btn-next').onclick = () => shiftAnchor(1);
+    $('btn-today').onclick = () => {
+      clearWeekFilter();
+      S.anchor = localToday();
+      $('view-date').value = S.anchor;
+      render();
+    };
     $('view-date').onchange = e => {
       if (!e.target.value) return;
       // 手动选到空日期时吸附到最近的有数据日期，避免展示无信息的周/月

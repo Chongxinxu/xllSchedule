@@ -97,6 +97,8 @@
 
     'view.prevWeek': ['上一周', 'Пред. неделя'],
     'view.nextWeek': ['下一周', 'След. неделя'],
+    'view.today': ['当前', 'Сейчас'],
+    'view.todayTitle': ['回到当前周', 'К текущей неделе'],
     'view.prevMonth': ['上个月', 'Пред. месяц'],
     'view.nextMonth': ['下个月', 'След. месяц'],
     'view.pickDate': ['跳转日期', 'Перейти к дате'],
