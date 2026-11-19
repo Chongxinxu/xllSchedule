@@ -1105,23 +1105,8 @@
     return html + '</div>';
   }
 
-  const PAW_SVG =
-    '<svg class="empty-paw" viewBox="0 0 40 34" fill="currentColor" aria-hidden="true">' +
-      '<g transform="translate(1 1)">' +
-        '<ellipse cx="7" cy="9" rx="2.5" ry="3.2" transform="rotate(-20 7 9)"/>' +
-        '<ellipse cx="14" cy="5.5" rx="2.6" ry="3.4"/>' +
-        '<ellipse cx="21.5" cy="5.5" rx="2.6" ry="3.4"/>' +
-        '<ellipse cx="28.5" cy="9" rx="2.5" ry="3.2" transform="rotate(20 28.5 9)"/>' +
-        '<path d="M17.5 12C21 10 26 11 28 13.5 30.5 16.5 29 20 25.5 21 23 21.8 21.5 20.8 19.5 20.5 17.5 20.2 15.5 21 14 19.5 11 17 13 13.5 17.5 12Z"/>' +
-      '</g>' +
-      '<g transform="translate(16 14) scale(0.72)" opacity="0.85">' +
-        '<ellipse cx="7" cy="9" rx="2.5" ry="3.2" transform="rotate(-20 7 9)"/>' +
-        '<ellipse cx="14" cy="5.5" rx="2.6" ry="3.4"/>' +
-        '<ellipse cx="21.5" cy="5.5" rx="2.6" ry="3.4"/>' +
-        '<ellipse cx="28.5" cy="9" rx="2.5" ry="3.2" transform="rotate(20 28.5 9)"/>' +
-        '<path d="M17.5 12C21 10 26 11 28 13.5 30.5 16.5 29 20 25.5 21 23 21.8 21.5 20.8 19.5 20.5 17.5 20.2 15.5 21 14 19.5 11 17 13 17.5 12Z"/>' +
-      '</g>' +
-    '</svg>';
+  // 无课图标：从效果图抠出的透明 PNG（两只猫爪斜向错开），形状与效果图完全一致
+  const PAW_SVG = '<img class="empty-paw" src="assets/paw.png?v=20261119u" alt="" aria-hidden="true">';
 
   function emptyHtml(msg, compact) {
     const sub = msg && msg !== T('card.noClass')

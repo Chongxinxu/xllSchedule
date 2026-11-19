@@ -186,7 +186,7 @@ a { color: var(--blue); }
 /* 左下角建筑线稿水印：作为背景，不遮挡导航点击 */
 .sidebar::after {
   content: ''; position: absolute; left: 0; bottom: 0; width: 100%; height: 350px;
-  background: url('mgu-building.png?v=20261119t') no-repeat left bottom;
+  background: url('mgu-building.png?v=20261119u') no-repeat left bottom;
   background-size: contain; opacity: .28; pointer-events: none; z-index: 0;
 }
 .sidebar > * { position: relative; z-index: 1; }
@@ -398,10 +398,10 @@ header.topbar {
   color: #c4c4c6; cursor: pointer; width: 100%; min-width: 0; box-sizing: border-box;
 }
 .no-class:hover { border-color: var(--line-strong); }
-.no-class .empty-paw { width: 32px; height: 27px; color: #b9b6bf; opacity: .9; }
+.no-class .empty-paw { width: 34px; height: auto; opacity: .9; }
 .no-class span { font-size: 14px; font-weight: 500; letter-spacing: .5px; }
 .no-class.compact { min-height: 96px; gap: 6px; padding: 12px 6px; }
-.no-class.compact .empty-paw { width: 30px; height: 26px; }
+.no-class.compact .empty-paw { width: 28px; height: auto; }
 .no-class.compact span { font-size: 12px; }
 
 /* 固定占满容器宽度，不让课程名长短改变卡片宽度 */
@@ -429,11 +429,11 @@ table.grid-table tr.past td { opacity: .5; }
   gap: 10px; min-height: 200px; padding: 36px 16px;
   background: transparent; border: 0; border-radius: 0; color: #c4c4c6;
 }
-.empty-paw { display: block; width: 32px; height: 24px; color: #bab7be; opacity: .9; }
+.empty-paw { display: block; width: 36px; height: auto; opacity: .9; }
 .empty-state strong { display: block; color: #c4c4c6; font-size: 14px; font-weight: 500; letter-spacing: .5px; }
 .empty-state .empty-sub { display: block; color: var(--muted); font-size: 12px; margin-top: -4px; }
 .empty-state.compact { min-height: 96px; padding: 18px 6px; gap: 8px; }
-.empty-state.compact .empty-paw { width: 26px; height: 20px; }
+.empty-state.compact .empty-paw { width: 30px; height: auto; }
 .empty-state.compact strong { font-size: 12px; }
 .day-col.is-empty { display: flex; flex-direction: column; }
 .day-col.is-empty .empty-state { flex: 1; }
