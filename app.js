@@ -67,10 +67,8 @@
     logs: [],
     courseZh: {},
     dict: { faculties: [], programs: [], groups: [], teachers: [], modes: [], subgroups: [], weeks: [], courses: [] },
-    filters: Object.assign({
-      faculty: '', program: '', group: '', teacher: '', week: '', date: '',
-      mode: '', subgroup: '', keyword: '', onlyMine: false
-    }, readStore('cm.filters', {})),
+    filters: null,
+    filtersPublic: null,
     pending: null,
     dateOverrides: {},
     conflictIds: new Set(),
@@ -83,8 +81,28 @@
     localMode: false,
     localAdmin: readStore('cm.localAdmin', false) === true
   };
-  // 已下线筛选项：清掉历史保存值，避免隐藏条件继续影响结果
-  S.filters.program = ''; S.filters.mode = ''; S.filters.date = '';
+  // 公共筛选器与个人课表完全分开：cm.filters 只保存公共筛选，游客/登录用户均可记忆
+  function defaultFilters() {
+    return {
+      faculty: '', program: '', group: '', teacher: '', week: '', date: '',
+      mode: '', subgroup: '', keyword: '', onlyMine: false
+    };
+  }
+  function normalizePublicFilters(f) {
+    const d = defaultFilters();
+    if (!f || typeof f !== 'object') return d;
+    return Object.assign(d, {
+      faculty: f.faculty || '', group: f.group || '', teacher: f.teacher || '',
+      week: f.week || '', subgroup: f.subgroup || '', keyword: f.keyword || ''
+    });
+  }
+  function hasAnyFilter(f) {
+    return !!(f && (f.faculty || f.group || f.teacher || f.week || f.subgroup || f.keyword));
+  }
+  function publicFilterClone() { return Object.assign({}, S.filtersPublic); }
+  function mineFilterClone() { return Object.assign(defaultFilters(), { onlyMine: true }); }
+  S.filtersPublic = normalizePublicFilters(readStore('cm.filters', {}));
+  S.filters = Object.assign({}, S.filtersPublic);
   S.anchor = localToday();
 
   /* ------------------------------------------------------------ 基础工具 */
@@ -180,7 +198,7 @@
     e._start = timeStart(e['时间']);
     e._status = e._status || 'normal';
     e._active = e._active !== false;
-    e._faculty = e._faculty || 'МАГ';
+    e._faculty = e._faculty || 'ВШУ МГУ';
     e['星期'] = e['星期'] || '周' + '一二三四五六日'[e._wd - 1];
     // 兼容云端/历史脏数据：КНР 只认班号 102。源文档曾把 (КНР) 误贴到 101 УП 抬头，
     // 会在筛选下拉里造出「1 курс гр. 101 УП (КНР)」这种不存在的班级。
@@ -196,7 +214,61 @@
     }
     return e;
   }
-  function zhOf(e) { return S.courseZh[e['课程']] || e['课程中文'] || ''; }
+  // 内置常用课程中俄对照：中文界面默认显示中文名，管理员/本机自定义译名优先级更高
+  const COURSE_ZH_BASE = {
+    'python: введение в анализ данных': 'Python：数据分析导论',
+    'английский язык брукс дуглас ли': '英语（布鲁克斯·道格拉斯·李）',
+    'военная экономика': '军事经济学',
+    'ии в бизнесе': '商业人工智能',
+    'информационная безопасность и защита информации': '信息安全与信息保护',
+    'информационно-аналитические технологии в управлении персоналом': '人力资源管理中的信息分析技术',
+    'креативное и дизайн-мышление': '创意与设计思维',
+    'криптоэкономика и технология блокчейн': '加密经济学与区块链技术',
+    'логистика и управление цепями поставок': '物流与供应链管理',
+    'моделирование и количественные методы анализа в бизнесе': '商业建模与定量分析方法',
+    'моделирование и управление бизнес-процессами': '业务流程建模与管理',
+    'обеспечение организации трудовыми ресурсами': '组织人力资源配置',
+    'организационное поведение': '组织行为学',
+    'правовая среда бизнеса и интеллектуальное право': '商业法律环境与知识产权',
+    'прогнозирование развития технологий': '技术发展趋势预测',
+    'продуктовая и прикладная аналитика': '产品与应用分析',
+    'проектирование баз данных': '数据库设计',
+    'русский как иностранный': '对外俄语',
+    'системный анализ и теория принятия решений': '系统分析与决策理论',
+    'системы искусственного интеллекта': '人工智能系统',
+    'системы искусственного интеллекта и интеллектуальные вычисления': '人工智能系统与智能计算',
+    'стратегический менеджмент': '战略管理',
+    'теория организации и организационного проектирования': '组织理论与组织设计',
+    'технологии обучения и развития персонала в цифровой экономике': '数字经济中的员工培训与发展技术',
+    'технологии цифрового производства': '数字生产技术',
+    'трудовое право и кадровый документооборот': '劳动法与人事档案管理',
+    'управление бизнес-процессами': '业务流程管理',
+    'управление изменениями и технологическая трансформация бизнеса': '变革管理与企业技术转型',
+    'управление интеллектуальной собственностью': '知识产权管理',
+    'управление персоналом высокотехнологичного предприятия': '高科技企业人力资源管理',
+    'управление проектами': '项目管理',
+    'управление рисками': '风险管理',
+    'управление эффективностью труда': '劳动效率管理',
+    'управленческая экономика': '管理经济学',
+    'философия': '哲学',
+    'финансовый анализ': '财务分析',
+    'циркулярная экономика и "зеленые технологии"': '循环经济与“绿色技术”',
+    'цифровой маркетинг': '数字营销',
+    'нет занятий': '无课'
+  };
+  function courseKey(s) {
+    return String(s || '')
+      .replace(/\s*Группа\s+[АБ]\s*/gi, ' ')
+      .replace(/\s*(Эконом\.?\s*фак\.?|Юр\.?\s*фак\.?|ауд\.?\s*уточняется|дист|Научный парк МГУ|очно|,543|a\.1ГУМ,?\s*П-9)\s*/gi, ' ')
+      .replace(/[\s,]+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+  function zhOf(e) {
+    if (S.lang !== 'zh') return '';
+    const raw = String(e['课程'] || '');
+    return S.courseZh[raw] || e['课程中文'] || COURSE_ZH_BASE[courseKey(raw)] || '';
+  }
   function modeLabel(v) {
     const key = 'mode.' + v;
     return I18N.PAIRS[key] ? T(key) : (v || T('common.empty'));
@@ -273,7 +345,11 @@
     if (f.group && e['班级'] !== f.group) return false;
     if (f.teacher && e['教师'] !== f.teacher) return false;
     if (f.mode && e['授课形式'] !== f.mode) return false;
-    if (f.subgroup && e['小组'] !== f.subgroup && e['小组'] !== '全部') return false;
+    if (f.subgroup) {
+      // 「Нет занятий」是占位行，不属于任何 A/B 组，分组筛选时应隐藏
+      if (e['课程'] === 'Нет занятий') return false;
+      if (e['小组'] !== f.subgroup && e['小组'] !== '全部') return false;
+    }
     if (f.date && e['日期'] !== f.date) return false;
     if (f.week && e._week !== f.week) return false;
     const q = String(f.keyword || '').trim().toLowerCase();
@@ -287,9 +363,8 @@
 
   function computeConflicts(list) {
     S.conflictIds = new Set();
-    // J01：只有「同一用户视角」才判断时间冲突；游客看全部班级时，不同班同时上课是正常的
-    const personalScope = S.filters.onlyMine || !!(S.filters.group || S.filters.teacher || S.filters.subgroup);
-    if (!personalScope) return;
+    // 时间冲突只在个人课表判断；公共课表不同班级同时上课是正常现象
+    if (!personalView()) return;
     const byDay = {};
     list.forEach(e => {
       if (!e['时间'] || e._status === 'cancelled') return;
@@ -368,7 +443,7 @@
       S.profile.lang = S.lang;
       S.overrides = {}; S.events = []; S.notes = {};
       S.isAdmin = false;
-      if (S.space === 'mine') { S.space = 'public'; S.filters.onlyMine = false; updateSpaceTabs(); }
+      if (S.space === 'mine') { S.space = 'public'; S.filters = publicFilterClone(); updateSpaceTabs(); }
       updateChrome(); render();
       return;
     }
@@ -486,6 +561,7 @@
   async function loadUserData() {
     const u = S.user;
     if (!u || !S.firebaseReady || !S.cloudOK) return;
+    const localPublic = S.filtersPublic;
     try {
       const col = n => FB.collection(db, n);
       const q = n => FB.query(col(n), FB.where('uid', '==', u.uid));
@@ -499,7 +575,12 @@
       if (profileSnap.exists()) S.profile = Object.assign(defaultProfile(), profileSnap.data(), { uid: u.uid, email: u.email });
       else S.profile = Object.assign(defaultProfile(), { uid: u.uid, email: u.email, lang: S.lang });
       if (S.profile.lang && S.profile.lang !== S.lang) { S.lang = S.profile.lang; applyI18n(); }
-      if (S.profile.filters) S.filters = Object.assign(S.filters, S.profile.filters);
+      // 公共筛选：本机有记录优先恢复本机；否则用账号云端记录。两者都只存公共条件。
+      S.filtersPublic = hasAnyFilter(localPublic)
+        ? localPublic
+        : normalizePublicFilters(S.profile.filters || {});
+      writeStore('cm.filters', S.filtersPublic);
+      if (S.space === 'public') S.filters = publicFilterClone();
 
       S.overrides = {};
       ovSnap.docs.forEach(d => { const x = d.data(); S.overrides[x.entryId] = { id: d.id, ...x }; });
@@ -603,6 +684,8 @@
     document.querySelectorAll('.side-item[data-space]').forEach(btn =>
       btn.classList.toggle('active', btn.dataset.space === S.space));
     const mine = S.space === 'mine';
+    // 个人课表隐藏全部筛选控件；公共筛选条件仍保留在 S.filtersPublic 中
+    document.querySelectorAll('.public-only').forEach(el => el.classList.toggle('hidden', mine));
     const cb = $('f-onlymine'); if (cb) cb.checked = mine;
     // 「恢复已删课程」属于个人课表操作，公共视图不显示
     const restoreBtn = $('btn-restore');
@@ -614,13 +697,15 @@
   }
 
   function setSpace(space) {
-    // 未登录才要求登录；已登录即使还没设置班级/教师，也直接切到个人页签，
-    // 只显示个人日程，并在提示区引导去设置，不再误报"需要先登录"也不强制弹窗。
+    // 未登录才要求登录；已登录即使还没设置班级/教师，也直接切到个人页签。
     if (space === 'mine' && !S.user) { needLogin(); return; }
+    // 离开公共视图前保存公共筛选，回来时原样恢复；个人视图使用独立空筛选。
+    if (S.space === 'public' && space === 'mine') S.filtersPublic = normalizePublicFilters(S.filters);
     S.space = space;
-    S.filters.onlyMine = space === 'mine';
-    writeStore('cm.filters', S.filters);
+    S.filters = space === 'mine' ? mineFilterClone() : publicFilterClone();
+    writeStore('cm.filters', S.filtersPublic);
     updateSpaceTabs();
+    initFilterOptions();
     render();
     closeSidebar();
   }
@@ -661,10 +746,11 @@
   }
 
   /* ------------------------------------------------------------ 筛选器 */
-  function fillSelect(id, values, formatter, key) {
+  function fillSelect(id, values, formatter, key, src) {
     const el = $(id);
-    // 不能用 `S.filters[key] || el.value`：清空筛选时 '' 会回落到旧值，导致「清除筛选」无效
-    const cur = key ? S.filters[key] : el.value;
+    // 不能用 `src[key] || el.value`：清空筛选时 '' 会回落到旧值，导致「清除筛选」无效
+    const source = src || S.filters;
+    const cur = key ? source[key] : el.value;
     const all = T('common.all');
     const opts = ['<option value="">' + esc(all) + '</option>'].concat(
       values.map(v => '<option value="' + esc(v) + '">' + esc(formatter ? formatter(v) : v) + '</option>'));
@@ -674,34 +760,36 @@
   }
 
   function initFilterOptions() {
-    const d = S.dict;
-    S.filters.faculty = fillSelect('f-faculty', d.faculties || [], null, 'faculty');
-    S.filters.group = fillSelect('f-group', d.groups || [], null, 'group');
-    S.filters.teacher = fillSelect('f-teacher', d.teachers || [], null, 'teacher');
-    S.filters.subgroup = fillSelect('f-subgroup', (d.subgroups || []).filter(v => v !== '全部'), null, 'subgroup');
-    S.filters.week = fillSelect('f-week', d.weeks || [], v => weekLabel(v) + ' · ' + v, 'week');
+    const d = S.dict, src = S.filtersPublic;
+    fillSelect('f-faculty', d.faculties || [], null, 'faculty', src);
+    fillSelect('f-group', d.groups || [], null, 'group', src);
+    fillSelect('f-teacher', d.teachers || [], null, 'teacher', src);
+    fillSelect('f-subgroup', (d.subgroups || []).filter(v => v !== '全部'), null, 'subgroup', src);
+    fillSelect('f-week', d.weeks || [], v => weekLabel(v) + ' · ' + v, 'week', src);
     // 已移除的筛选项强制清空，避免历史保存值在后台继续生效
-    S.filters.program = ''; S.filters.mode = ''; S.filters.date = '';
-    $('f-keyword').value = S.filters.keyword || '';
-    $('f-onlymine').checked = !!S.filters.onlyMine && !!S.user;
+    src.program = ''; src.mode = ''; src.date = '';
+    $('f-keyword').value = src.keyword || '';
+    $('f-onlymine').checked = S.space === 'mine';
+    if (S.space === 'public') S.filters = publicFilterClone();
   }
 
   let filterSyncTimer = null;
   function collectFilters() {
-    S.filters = {
+    // 只收集公共筛选器；个人课表不使用这些条件
+    S.filtersPublic = normalizePublicFilters({
       faculty: $('f-faculty').value,
       group: $('f-group').value, teacher: $('f-teacher').value,
       week: $('f-week').value,
       subgroup: $('f-subgroup').value,
-      program: '', mode: '', date: '',   // 已移除的筛选项
-      keyword: $('f-keyword').value.trim(), onlyMine: $('f-onlymine').checked && !!S.user
-    };
-    // 记住筛选改为默认行为：每次变动即存本地，登录时防抖同步云端（静默，不打扰用户）
-    writeStore('cm.filters', S.filters);
+      keyword: $('f-keyword').value.trim()
+    });
+    S.filters = publicFilterClone();
+    // 每次变动即存本地，游客也能在同设备恢复；登录用户再静默同步云端
+    writeStore('cm.filters', S.filtersPublic);
     if (S.user && S.cloudOK) {
       clearTimeout(filterSyncTimer);
       filterSyncTimer = setTimeout(() => {
-        FB.updateDoc(FB.doc(db, 'users', S.user.uid), { filters: S.filters }).catch(() => {});
+        FB.updateDoc(FB.doc(db, 'users', S.user.uid), { filters: S.filtersPublic }).catch(() => {});
       }, 600);
     }
   }
@@ -738,6 +826,14 @@
     const dates = dataDates();
     if (!dates.length || dates.indexOf(s) >= 0) return s;
     return dates.find(d => d > s) || dates[dates.length - 1];
+  }
+  // 上一周/下一周与日期跳转都属于时间导航，清除教学周筛选，避免筛选把导航结果挡掉
+  function clearWeekFilter() {
+    if (!S.filtersPublic.week) return;
+    S.filtersPublic.week = '';
+    if (S.space === 'public') S.filters.week = '';
+    writeStore('cm.filters', S.filtersPublic);
+    const sel = $('f-week'); if (sel) sel.value = '';
   }
 
   function tagHtml(text, cls) { return '<span class="tag ' + (cls || '') + '">' + esc(text) + '</span>'; }
@@ -1158,6 +1254,7 @@
     const e = mergedEntries().find(x => x.id === id);
     if (!e) return;
     S.detailId = id;
+    const mine = personalView();
     const kv = (k, v) => '<div class="k">' + esc(T(k)) + '</div><div>' + esc(v || T('common.empty')) + '</div>';
     const note = S.notes[id];
     let html = '<div class="kv">' +
@@ -1174,7 +1271,7 @@
       (S.conflictIds.has(id) ? tagHtml(T('view.conflict'), 'red') : '') + '</div>';
 
     // 备注是用户私有内容：只在个人课程表里出现，公共课表的详情不显示
-    if (personalView()) {
+    if (mine) {
       html += '<div class="section-title">' + esc(T('detail.notes')) + '</div>' +
         '<textarea id="d-note" placeholder="' + esc(T('detail.notePlaceholder')) + '">' + esc(note ? note.text : '') + '</textarea>' +
         '<div class="actions">' +
@@ -1183,11 +1280,18 @@
         '</div>';
     }
 
-    html += '<div class="section-title">' + esc(T('common.personal')) + '</div><div class="actions">' +
-      '<button class="ghost-btn" data-act="edit-personal">' + esc(T('detail.editPersonal')) + '</button>' +
-      '<button class="ghost-btn" data-act="hide-personal">' + esc(T('detail.deletePersonal')) + '</button>' +
-      '<button class="ghost-btn" data-act="report-error">' + esc(T('detail.reportError')) + '</button>' +
-      '</div>';
+    if (mine) {
+      html += '<div class="section-title">' + esc(T('common.personal')) + '</div><div class="actions">' +
+        '<button class="ghost-btn" data-act="edit-personal">' + esc(T('detail.editPersonal')) + '</button>' +
+        '<button class="ghost-btn" data-act="hide-personal">' + esc(T('detail.deletePersonal')) + '</button>' +
+        '<button class="ghost-btn" data-act="report-error">' + esc(T('detail.reportError')) + '</button>' +
+        '</div>';
+    } else {
+      // 公共课表详情不展示个人操作，只提供「添加课程」把这一门加入个人课表
+      html += '<div class="actions">' +
+        '<button class="primary-btn" data-act="add-personal">' + esc(T('detail.addCourse')) + '</button>' +
+        '</div>';
+    }
 
     if (S.isAdmin && S.cloudOK && !e._event) {
       html += '<div class="section-title">' + esc(T('nav.admin')) + '</div><div class="actions">' +
@@ -1196,6 +1300,9 @@
         '</div>';
     }
     $('detail-body').innerHTML = html;
+    // 星标也是个人操作，公共课表详情不显示
+    const starBtn = $('detail-star');
+    if (starBtn) starBtn.classList.toggle('hidden', !mine);
     updateStarBtn(!!(note && note.star));
     showDlg('dlg-detail');
   }
@@ -1543,6 +1650,23 @@
     toast(T('edit.restored'), 'ok'); render();
   }
 
+  // 公共详情「添加课程」：只把当前这一门课程加入个人课表
+  async function addPersonal(id) {
+    if (!S.user) return needLogin();
+    if (!S.cloudOK) { toast(T('admin.offline'), 'error'); return; }
+    const official = S.entries.find(e => e.id === id);
+    if (!official || official._active === false) { toast(T('view.noMatch'), 'error'); return; }
+    if (S.overrides[id]) { toast(T('saveSchedule.already'), 'ok'); return; }
+    const key = hashId(S.user.uid + '|' + id);
+    const rec = { uid: S.user.uid, entryId: id, patch: {}, deleted: false, createdAt: nowIso() };
+    try {
+      await FB.setDoc(FB.doc(db, 'userScheduleOverrides', key), rec);
+      S.overrides[id] = { id: key, ...rec };
+      toast(T('saveSchedule.done', { n: 1 }), 'ok');
+      render();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
   // 保存课表：把当前视图里可见的公共课程整批写入个人课表（userScheduleOverrides），需登录
   async function saveScheduleToMine() {
     if (!S.user) return needLogin();
@@ -1882,19 +2006,15 @@
       };
     });
     $('f-keyword').oninput = () => { collectFilters(); render(); };
-    $('f-onlymine').onchange = () => {
-      collectFilters();
-      S.space = S.filters.onlyMine ? 'mine' : 'public';
-      updateSpaceTabs(); render();
-    };
+    $('f-onlymine').onchange = () => setSpace($('f-onlymine').checked ? 'mine' : 'public');
     $('btn-reset').onclick = () => {
-      S.filters = {
-        faculty: '', program: '', group: '', teacher: '', week: '', date: '',
-        mode: '', subgroup: '', keyword: '', onlyMine: false
-      };
-      writeStore('cm.filters', S.filters);
-      S.space = 'public'; updateSpaceTabs();
-      initFilterOptions(); render();
+      S.filtersPublic = defaultFilters();
+      S.filters = publicFilterClone();
+      writeStore('cm.filters', S.filtersPublic);
+      if (S.user && S.cloudOK) {
+        FB.updateDoc(FB.doc(db, 'users', S.user.uid), { filters: S.filtersPublic }).catch(() => {});
+      }
+      updateSpaceTabs(); initFilterOptions(); render();
     };
     $('btn-save-filters').onclick = saveFilters;
     $('btn-save-schedule').onclick = saveScheduleToMine;
@@ -1909,8 +2029,8 @@
     $('view-date').onchange = e => {
       if (!e.target.value) return;
       // 手动选到空日期时吸附到最近的有数据日期，避免展示无信息的周/月
+      clearWeekFilter();
       S.anchor = snapToDataDate(e.target.value);
-      S.filters.date = '';
       render();
     };
 
@@ -1987,6 +2107,7 @@
   }
 
   function shiftAnchor(dir) {
+    clearWeekFilter();
     const dates = dataDates();
     if (!dates.length) { S.anchor = addDays(S.anchor, dir * 7); render(); return; }
     if (S.view === 'day') {
@@ -2018,6 +2139,9 @@
         break;
       case 'note-save': await saveNote(false); break;
       case 'note-del': await saveNote(true); break;
+      case 'add-personal':
+        hideDlg('dlg-detail'); await addPersonal(id);
+        break;
       case 'edit-personal':
         if (!S.user || !S.cloudOK) return needLogin();
         hideDlg('dlg-detail'); openEdit({ mode: 'personal', id: id });
@@ -2056,7 +2180,7 @@
         writeStore('cm.localAdmin', false);
       }
     } catch (e) { /* 非浏览器环境 */ }
-    S.space = S.filters.onlyMine ? 'mine' : 'public';
+    S.space = 'public';   // 每次进入先回到公共课表；个人页签需手动切换并登录
     applyI18n();
     bindEvents();
     loadLocalData(false);
