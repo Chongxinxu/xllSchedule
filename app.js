@@ -312,7 +312,9 @@
       if (mine && ov && ov.deleted) continue;
       if (mine && ov && ov.patch) Object.assign(m, ov.patch);
       m._zh = zhOf(m);
-      m._saved = !!ov;                 // 仅用于「保存课表」去重，不控制显示
+      // 「清空本周」会留下 deleted:true 的覆盖记录，那不算已保存；
+      // 否则清空后公共课表会误判为已保存，无法重新加入个人课表。
+      m._saved = !!ov && !ov.deleted;  // 仅用于「保存课表」去重，不控制显示
       m._personal = mine && !!ov && !ov.deleted;
       m._edited = mine && !!ov && !ov.deleted && patchHasChanges(ov.patch, e);
       m._noteText = mine ? noteTextOf(e.id) : '';
@@ -1709,9 +1711,14 @@
     if (!S.cloudOK) { toast(T('admin.offline'), 'error'); return; }
     const official = S.entries.find(e => e.id === id);
     if (!official || official._active === false) { toast(T('view.noMatch'), 'error'); return; }
-    if (S.overrides[id]) { toast(T('saveSchedule.already'), 'ok'); return; }
+    const old = S.overrides[id];
+    // 被「清空本周」隐藏过的课程仍可再次添加，且保留原有编辑
+    if (old && !old.deleted) { toast(T('saveSchedule.already'), 'ok'); return; }
     const key = hashId(S.user.uid + '|' + id);
-    const rec = { uid: S.user.uid, entryId: id, patch: {}, deleted: false, createdAt: nowIso() };
+    const rec = {
+      uid: S.user.uid, entryId: id,
+      patch: (old && old.patch) || {}, deleted: false, createdAt: nowIso()
+    };
     try {
       await FB.setDoc(FB.doc(db, 'userScheduleOverrides', key), rec);
       S.overrides[id] = { id: key, ...rec };
@@ -1726,22 +1733,31 @@
     if (!S.cloudOK) { toast(T('admin.offline'), 'error'); return; }
     const list = rangeEntries().filter(e => !e._event && !e._saved);
     if (!list.length) { toast(T('saveSchedule.empty'), 'error'); return; }
-    // 已存在的个人覆盖不重复写入
-    const items = list.filter(e => !S.overrides[e.id]);
+    // 已存在且未隐藏的覆盖不重复写入；被「清空本周」隐藏过（deleted:true）的可以重新保存
+    const now = nowIso();
+    const items = list.filter(e => {
+      const ov = S.overrides[e.id];
+      return !ov || ov.deleted;
+    }).map(e => {
+      const old = S.overrides[e.id] || {};
+      return {
+        entryId: e.id,
+        key: hashId(S.user.uid + '|' + e.id),
+        rec: {
+          uid: S.user.uid, entryId: e.id,
+          patch: old.patch || {},     // 保留此前手动改过的字段，不清空用户的编辑
+          deleted: false, createdAt: now
+        }
+      };
+    });
     if (!items.length) { toast(T('saveSchedule.already'), 'ok'); return; }
     let ok = 0;
     try {
-      await chunkedBatch(items, (batch, e) => {
-        const key = hashId(S.user.uid + '|' + e.id);
-        batch.set(FB.doc(db, 'userScheduleOverrides', key), {
-          uid: S.user.uid, entryId: e.id, patch: {}, deleted: false, createdAt: nowIso()
-        });
+      await chunkedBatch(items, (batch, it) => {
+        batch.set(FB.doc(db, 'userScheduleOverrides', it.key), it.rec);
         ok++;
       });
-      items.forEach(e => {
-        const key = hashId(S.user.uid + '|' + e.id);
-        S.overrides[e.id] = { id: key, uid: S.user.uid, entryId: e.id, patch: {}, deleted: false, createdAt: nowIso() };
-      });
+      items.forEach(it => { S.overrides[it.entryId] = { id: it.key, ...it.rec }; });
       toast(T('saveSchedule.done', { n: ok }), 'ok');
       render();
     } catch (e) { toast(e.message, 'error'); }
