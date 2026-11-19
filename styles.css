@@ -186,7 +186,7 @@ a { color: var(--blue); }
 /* 左下角建筑线稿水印：作为背景，不遮挡导航点击 */
 .sidebar::after {
   content: ''; position: absolute; left: 0; bottom: 0; width: 100%; height: 350px;
-  background: url('mgu-building.png?v=20261119r') no-repeat left bottom;
+  background: url('mgu-building.png?v=20261119t') no-repeat left bottom;
   background-size: contain; opacity: .28; pointer-events: none; z-index: 0;
 }
 .sidebar > * { position: relative; z-index: 1; }
@@ -284,7 +284,8 @@ header.topbar {
 .ghost-btn:hover { background: var(--surface-2); }
 .ghost-btn:disabled, .primary-btn:disabled { opacity: .5; cursor: not-allowed; }
 .yellow-btn.cooldown { opacity: .55; cursor: wait; filter: grayscale(.35); }
-.yellow-btn { background: var(--yellow); color: var(--ink); border: 1px solid var(--yellow-line); font-weight: 700; }
+.yellow-btn { background: linear-gradient(135deg, #6fa6cc 0%, #4a7ba8 100%); color: #fff; border: 1px solid #45769f; font-weight: 700; }
+.yellow-btn:hover { filter: brightness(1.06); }
 
 /* ------------------------------------------------------------ 提示条 */
 .banner { padding: 9px 20px; font-size: 13px; border-bottom: 1px solid var(--line); }
