@@ -55,6 +55,7 @@ a { color: var(--blue); }
 .sidebar > * { position: relative; z-index: 1; }
 .side-brand { display: flex; align-items: flex-start; gap: 10px; padding: 20px 18px; border-bottom: 1px solid var(--line); }
 .side-emblem { color: var(--ink); flex: 0 0 auto; line-height: 0; }
+.side-emblem img { display: block; width: 46px; height: 40px; object-fit: contain; }
 .side-brand-txt { display: flex; flex-direction: column; line-height: 1.25; }
 .side-brand-txt strong { font-size: 16px; font-weight: 800; letter-spacing: .2px; }
 .side-brand-txt span { font-size: 10px; color: var(--muted); margin-top: 3px; }
