@@ -115,10 +115,10 @@
     <label class="public-only"><span id="lb-subgroup">分组</span><select id="f-subgroup"></select></label>
     <div class="toolbar-actions">
       <input type="text" id="f-keyword" class="public-only" placeholder="搜索课程 / 教师 / 教室…">
-      <label class="check public-only"><input type="checkbox" id="f-onlymine"><span id="lb-onlymine">只看我的课表</span></label>
+      <label class="check hidden" id="onlymine-row"><input type="checkbox" id="f-onlymine"><span id="lb-onlymine">只看我的课表</span></label>
       <button class="ghost-btn public-only" id="btn-reset">清除筛选</button>
       <button class="ghost-btn hidden" id="btn-save-filters">记住筛选</button>
-      <button class="ghost-btn yellow-btn" id="btn-save-schedule">保存课表</button>
+      <button class="ghost-btn yellow-btn public-only" id="btn-save-schedule">保存课表</button>
       <button class="ghost-btn" id="btn-restore">恢复已删课程</button>
       <button class="ghost-btn" id="btn-export">导出图片</button>
       <button class="ghost-btn hidden" id="btn-print">打印 / 存为 PDF</button>
