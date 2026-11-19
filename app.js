@@ -1013,9 +1013,7 @@
   function renderDay(list) {
     const rows = list.filter(e => e['日期'] === S.anchor).sort((a, b) => a._start - b._start);
     if (!rows.length) return emptyHtml(T('view.noCourses'));
-    return '<div class="day-list">' + rows.map(e =>
-      '<div class="row-card"><div class="row-time">' + esc(e['时间'] || '—') + '</div>' +
-      cardHtml(e) + '</div>').join('') + '</div>';
+    return '<div class="day-list">' + rows.map(e => cardHtml(e)).join('') + '</div>';
   }
 
   function renderList(list) {
