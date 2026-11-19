@@ -330,7 +330,8 @@
   function inScope(e) {
     const f = S.filters;
     const p = S.profile;
-    if (f.onlyMine) {
+    // 个人范围一律以当前页签为准，不能依赖可能被筛选逻辑清掉的 onlyMine 字段
+    if (personalView()) {
       // 个人日程与手动添加的事件永远属于「我的课表」
       if (e._event || e._personal) { /* 保留 */ }
       else {
@@ -770,11 +771,14 @@
     src.program = ''; src.mode = ''; src.date = '';
     $('f-keyword').value = src.keyword || '';
     $('f-onlymine').checked = S.space === 'mine';
-    if (S.space === 'public') S.filters = publicFilterClone();
+    // 锁死当前视图的筛选来源：个人视图永远用专属空筛选，不继承任何公共条件
+    S.filters = S.space === 'mine' ? mineFilterClone() : publicFilterClone();
   }
 
   let filterSyncTimer = null;
   function collectFilters() {
+    // 个人课表隐藏筛选器，任何残留事件都不能把个人筛选状态改回公共筛选
+    if (S.space === 'mine') return;
     // 只收集公共筛选器；个人课表不使用这些条件
     S.filtersPublic = normalizePublicFilters({
       faculty: $('f-faculty').value,
@@ -2008,6 +2012,7 @@
     $('f-keyword').oninput = () => { collectFilters(); render(); };
     $('f-onlymine').onchange = () => setSpace($('f-onlymine').checked ? 'mine' : 'public');
     $('btn-reset').onclick = () => {
+      if (S.space === 'mine') return;
       S.filtersPublic = defaultFilters();
       S.filters = publicFilterClone();
       writeStore('cm.filters', S.filtersPublic);
