@@ -33,6 +33,9 @@
 
   const FB = {};
   let auth = null, db = null, fbApp = null;
+  // 跨设备同步：Firestore 实时监听。个人数据按 uid 隔离，官方数据监听版本签名。
+  let userWatchers = [], userSnaps = {};
+  let versionWatch = null, lastVersionSig = '', cloudReloadTimer = null;
 
   function defaultProfile() {
     return {
@@ -435,7 +438,7 @@
         getDocs: fsMod.getDocs, getDoc: fsMod.getDoc,
         setDoc: fsMod.setDoc, updateDoc: fsMod.updateDoc, deleteDoc: fsMod.deleteDoc,
         addDoc: fsMod.addDoc, writeBatch: fsMod.writeBatch,
-        query: fsMod.query, where: fsMod.where
+        query: fsMod.query, where: fsMod.where, onSnapshot: fsMod.onSnapshot
       });
       auth = FB.getAuth(fbApp);
       db = FB.getFirestore(fbApp);
@@ -449,6 +452,7 @@
   }
 
   async function onAuthChanged(user) {
+    stopUserWatch();                 // 切账号/退出时先停掉旧 UID 的监听，避免串号
     S.user = user;
     if (!user) {
       S.profile = defaultProfile();
@@ -463,6 +467,7 @@
     S.profile.email = user.email || '';
     await loadUserData();
     await resolveAdmin(user);
+    watchUserData();                 // 登录后持续同步另一台设备对个人课表的修改
     updateChrome(); updateSpaceTabs(); render();
   }
 
@@ -529,6 +534,8 @@
       buildDict();
       await loadUserData();
       await resolveAdmin(S.user);
+      watchUserData();               // 云端可用后才建立个人数据实时监听
+      watchOfficialVersions();       // 管理员在别的设备发布新版本时自动刷新
       initFilterOptions();
       S.anchor = snapToDataDate(S.anchor);
       updateChrome(); render();
@@ -570,10 +577,40 @@
     }
   }
 
+  // 把一次快照应用到内存。首次加载保留「本机筛选优先」；实时同步时不拿别的设备的
+  // 筛选覆盖当前设备正在用的条件——筛选本来就是按设备记忆的，其它数据一律同步。
+  function applyUserSnaps(snaps, useLocalFilter) {
+    const u = S.user;
+    if (!u) return;
+    const { profileSnap, ovSnap, evSnap, noteSnap } = snaps;
+    const localPublic = S.filtersPublic;
+    if (profileSnap && profileSnap.exists()) {
+      S.profile = Object.assign(defaultProfile(), profileSnap.data(), { uid: u.uid, email: u.email });
+    } else {
+      S.profile = Object.assign(defaultProfile(), { uid: u.uid, email: u.email, lang: S.lang });
+    }
+    if (S.profile.lang && S.profile.lang !== S.lang) { S.lang = S.profile.lang; applyI18n(); }
+    if (useLocalFilter) {
+      S.filtersPublic = hasAnyFilter(localPublic)
+        ? localPublic
+        : normalizePublicFilters(S.profile.filters || {});
+      writeStore('cm.filters', S.filtersPublic);
+      if (S.space === 'public') S.filters = publicFilterClone();
+    }
+    if (ovSnap) {
+      S.overrides = {};
+      ovSnap.docs.forEach(d => { const x = d.data(); S.overrides[x.entryId] = { id: d.id, ...x }; });
+    }
+    if (evSnap) S.events = evSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (noteSnap) {
+      S.notes = {};
+      noteSnap.docs.forEach(d => { const x = d.data(); S.notes[x.entryId] = { id: d.id, ...x }; });
+    }
+  }
+
   async function loadUserData() {
     const u = S.user;
     if (!u || !S.firebaseReady || !S.cloudOK) return;
-    const localPublic = S.filtersPublic;
     try {
       const col = n => FB.collection(db, n);
       const q = n => FB.query(col(n), FB.where('uid', '==', u.uid));
@@ -583,23 +620,65 @@
         FB.getDocs(q('userEvents')),
         FB.getDocs(q('userNotes'))
       ]), CONFIG.FS_TIMEOUT, '个人数据读取');
-
-      if (profileSnap.exists()) S.profile = Object.assign(defaultProfile(), profileSnap.data(), { uid: u.uid, email: u.email });
-      else S.profile = Object.assign(defaultProfile(), { uid: u.uid, email: u.email, lang: S.lang });
-      if (S.profile.lang && S.profile.lang !== S.lang) { S.lang = S.profile.lang; applyI18n(); }
-      // 公共筛选：本机有记录优先恢复本机；否则用账号云端记录。两者都只存公共条件。
-      S.filtersPublic = hasAnyFilter(localPublic)
-        ? localPublic
-        : normalizePublicFilters(S.profile.filters || {});
-      writeStore('cm.filters', S.filtersPublic);
-      if (S.space === 'public') S.filters = publicFilterClone();
-
-      S.overrides = {};
-      ovSnap.docs.forEach(d => { const x = d.data(); S.overrides[x.entryId] = { id: d.id, ...x }; });
-      S.events = evSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      S.notes = {};
-      noteSnap.docs.forEach(d => { const x = d.data(); S.notes[x.entryId] = { id: d.id, ...x }; });
+      applyUserSnaps({ profileSnap, ovSnap, evSnap, noteSnap }, true);
     } catch (e) { console.warn('个人数据读取失败：', e); }
+  }
+
+  function stopUserWatch() {
+    userWatchers.forEach(u => { try { u(); } catch (e) { /* 已断开 */ } });
+    userWatchers = [];
+    userSnaps = {};
+  }
+
+  // 登录后持续监听本人私有集合：另一台设备的保存/编辑/隐藏/备注/星标/个人日程
+  // 都会即时推到当前页面，无需刷新或重新登录。
+  function watchUserData() {
+    stopUserWatch();
+    const u = S.user;
+    if (!u || !S.firebaseReady || !S.cloudOK || !FB.onSnapshot) return;
+    const col = n => FB.collection(db, n);
+    const q = n => FB.query(col(n), FB.where('uid', '==', u.uid));
+    const keys = ['profileSnap', 'ovSnap', 'evSnap', 'noteSnap'];
+    const refs = [
+      FB.doc(db, 'users', u.uid),
+      q('userScheduleOverrides'), q('userEvents'), q('userNotes')
+    ];
+    const onErr = e => console.warn('个人数据实时同步失败：', e);
+    refs.forEach((ref, i) => {
+      let unsub;
+      try {
+        unsub = FB.onSnapshot(ref, snap => {
+          userSnaps[keys[i]] = snap;
+          // 四个快照到齐后再整体应用，避免中间态把数据临时清空
+          if (!keys.every(k => userSnaps[k])) return;
+          applyUserSnaps(userSnaps, false);
+          render();
+        }, onErr);
+      } catch (e) { console.warn('建立个人数据监听失败：', e); return; }
+      if (typeof unsub === 'function') userWatchers.push(unsub);
+    });
+  }
+
+  function versionSig(list) {
+    return list.map(v => v.id + ':' + (v.publishedAt || '')).sort().join('|');
+  }
+
+  // 官方课表版本变化（管理员在别的设备发布/回滚）时自动重读，避免旧页面一直显示过期课表
+  function watchOfficialVersions() {
+    if (!S.firebaseReady || !S.cloudOK || !FB.onSnapshot) return;
+    lastVersionSig = versionSig(S.versions);
+    if (versionWatch) return;   // 已监听，只刷新基线签名
+    try {
+      versionWatch = FB.onSnapshot(FB.collection(db, 'scheduleVersions'), snap => {
+        const sig = versionSig(snap.docs.map(d => ({ id: d.id, publishedAt: (d.data() || {}).publishedAt })));
+        if (!lastVersionSig) { lastVersionSig = sig; return; }
+        if (sig === lastVersionSig) return;
+        lastVersionSig = sig;
+        clearTimeout(cloudReloadTimer);
+        // 发布是多个批量写，防抖一次，避免中途读到半成品
+        cloudReloadTimer = setTimeout(() => { if (S.cloudOK) loadCloud(); }, 600);
+      }, e => console.warn('课表版本实时同步失败：', e));
+    } catch (e) { console.warn('建立课表版本监听失败：', e); }
   }
 
   /* ------------------------------------------------------------ 批量写 */
@@ -1260,6 +1339,8 @@
     p.lang = $('p-lang').value;
     p.uid = S.user.uid; p.email = S.user.email || '';
     p.role = p.role === 'teacher' ? 'teacher' : 'student';
+    // 实时同步可能带来别的设备的 filters，保存资料时明确写回本机的公共筛选
+    p.filters = S.filtersPublic;
     if (S.cloudOK) {
       try { await FB.setDoc(FB.doc(db, 'users', S.user.uid), p); }
       catch (e) { toast(e.message, 'error'); return; }
@@ -2051,6 +2132,15 @@
 
   /* ------------------------------------------------------------ 事件绑定 */
   function bindEvents() {
+    // 实时监听断线或休眠期间可能漏掉推送；切回页面时补一次读取，保证跨设备一致
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible' || !S.cloudOK || !S.firebaseReady) return;
+      if (S.user) loadUserData().then(render);
+      FB.getDocs(FB.collection(db, 'scheduleVersions')).then(snap => {
+        const sig = versionSig(snap.docs.map(d => ({ id: d.id, publishedAt: (d.data() || {}).publishedAt })));
+        if (sig !== lastVersionSig) loadCloud();
+      }).catch(() => {});
+    });
     document.querySelectorAll('#view-tabs button').forEach(btn => btn.onclick = () => {
       S.view = btn.dataset.view; updateChrome(); render();
     });
