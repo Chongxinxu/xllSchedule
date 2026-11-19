@@ -732,7 +732,8 @@
       : (S.user ? T('nav.user') : T('nav.guest'));
     $('user-label').textContent = S.user ? (S.profile.name || S.user.email || '') : '';
     $('btn-login').classList.toggle('hidden', !!S.user);
-    $('btn-profile').classList.toggle('hidden', !S.user);
+    // 「个人设置」入口按需求屏蔽，永久隐藏（底层函数保留，不影响其他调用）
+    $('btn-profile').classList.add('hidden');
     $('btn-logout').classList.toggle('hidden', !S.user);
     $('admin-bar').classList.toggle('hidden', !admin);
     $('f-onlymine').disabled = !S.user;
