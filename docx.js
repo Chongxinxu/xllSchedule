@@ -245,8 +245,9 @@
     if (roomRaw) rest = rest.replace(roomRaw, '');
     rest = rest.trim();
     const teacherM = TEACHER_RE.exec(rest);
-    const teacher = teacherM ? teacherM[0] : '';
-    const course = teacher ? strip(rest.replace(teacher, '')) : strip(rest);
+    // 统一缩写空格：「Р. М.」与「Р.М.」是同一位老师
+    const teacher = teacherM ? teacherM[0].replace(/([А-ЯЁ])\.\s+([А-ЯЁ])\./g, '$1.$2.') : '';
+    const course = teacherM ? strip(rest.replace(teacherM[0], '')) : strip(rest);
     const subM = SUBGROUP_RE.exec(line);
     const subgroup = subM ? 'Группа ' + subM[1].toUpperCase() : '全部';
     const list = groups && groups.length ? groups : [{}];

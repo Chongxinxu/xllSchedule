@@ -190,8 +190,17 @@
   }
 
   /* ------------------------------------------------------------ 条目模型 */
+  // 教师名规范化：俄文姓名缩写「Р. М.」「Р.М.」是同一人，统一去掉缩写字母之间的空格。
+  // 解析层（convert.py / docx.js）与此处保持一致；本函数兜底历史云端脏数据。
+  function normTeacher(s) {
+    if (!s) return s;
+    return String(s).replace(/\s+/g, ' ').trim()
+      .replace(/([А-ЯЁ])\.\s+([А-ЯЁ])\./g, '$1.$2.');
+  }
+
   function normalizeEntry(raw, id) {
     const e = Object.assign({}, raw);
+    e['教师'] = normTeacher(e['教师']);
     e.id = id || null;
     e._week = e._week || weekStart(e['日期'] || localToday());
     e._wd = WD_KEYS[e['星期']] || weekdayOf(e['日期']);
