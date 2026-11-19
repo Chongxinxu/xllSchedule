@@ -632,6 +632,7 @@
     'lb-subgroup': 'filter.subgroup', 'lb-onlymine': 'filter.onlyMine',
     'btn-reset': 'common.reset', 'btn-save-filters': 'filter.save',
     'btn-save-schedule': 'filter.saveSchedule', 'btn-restore': 'filter.restore',
+    'btn-clear-week': 'filter.clearWeek',
     'detail-title': 'detail.title', 'restore-title': 'restore.title',
     'btn-export': 'common.export',
     'admin-label': 'nav.admin', 'btn-upload': 'nav.upload', 'btn-courses': 'nav.courses',
@@ -697,9 +698,12 @@
     // 个人课表隐藏全部筛选控件；公共筛选条件仍保留在 S.filtersPublic 中
     document.querySelectorAll('.public-only').forEach(el => el.classList.toggle('hidden', mine));
     const cb = $('f-onlymine'); if (cb) cb.checked = mine;
-    // 「恢复已删课程」属于个人课表操作，公共视图不显示
+    // 「恢复已删课程」已按要求隐藏，保留底层逻辑备用
     const restoreBtn = $('btn-restore');
-    if (restoreBtn) restoreBtn.classList.toggle('hidden', !mine || !S.user);
+    if (restoreBtn) restoreBtn.classList.add('hidden');
+    // 「清空本周个人课表」仅在个人视图且已登录时显示
+    const clearBtn = $('btn-clear-week');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !mine || !S.user);
     const note = $('info-note-text');
     if (note) note.textContent = T(!mine ? 'page.info'
       : (!S.user ? 'detail.needLogin'
@@ -1664,6 +1668,41 @@
     toast(T('edit.restored'), 'ok'); render();
   }
 
+  // 清空本周个人课表：把当前教学周个人视图里显示的所有官方课程标记为隐藏，
+  // 让这一周在个人视图显示为空。只写 userScheduleOverrides，不影响公共课表；
+  // 保留每门课原有的 patch，之后仍可逐门重新添加。个人日程（event）不在此列。
+  async function clearWeekPersonal() {
+    if (!S.user) return needLogin();
+    if (!personalView()) return;
+    if (!S.cloudOK) { toast(T('admin.offline'), 'error'); return; }
+    const week = weekStart(S.anchor);
+    // 必须经过 inScope 按个人班级/教师过滤，只清空个人视图真正可见的课程，
+    // 否则会把所有班级的本周课程都误标记隐藏。
+    const list = mergedEntries().filter(inScope).filter(e => !e._event && e._week === week);
+    if (!list.length) { toast(T('clearWeek.empty'), 'error'); return; }
+    // 二次确认，避免误清空整周
+    if (!window.confirm(T('clearWeek.confirm', { n: list.length }))) return;
+    const items = list.map(e => {
+      const old = S.overrides[e.id] || {};
+      return { id: e.id, rec: {
+        uid: S.user.uid, entryId: e.id, patch: old.patch || {},
+        deleted: true, createdAt: nowIso()
+      } };
+    });
+    try {
+      await chunkedBatch(items, (batch, it) => {
+        const key = hashId(S.user.uid + '|' + it.id);
+        batch.set(FB.doc(db, 'userScheduleOverrides', key), it.rec);
+      });
+      items.forEach(it => {
+        const key = hashId(S.user.uid + '|' + it.id);
+        S.overrides[it.id] = { id: key, ...it.rec };
+      });
+      toast(T('clearWeek.done', { n: items.length }), 'ok');
+      render();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
   // 公共详情「添加课程」：只把当前这一门课程加入个人课表
   async function addPersonal(id) {
     if (!S.user) return needLogin();
@@ -2034,6 +2073,7 @@
     $('btn-save-filters').onclick = saveFilters;
     $('btn-save-schedule').onclick = saveScheduleToMine;
     $('btn-restore').onclick = openRestore;
+    $('btn-clear-week').onclick = clearWeekPersonal;
     $('detail-star').onclick = toggleStar;
     $('restore-close').onclick = () => hideDlg('dlg-restore');
     $('btn-export').onclick = exportScheduleImage;
