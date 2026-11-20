@@ -1,0 +1,14 @@
+{
+  "name": "NaParu",
+  "short_name": "NaParu",
+  "description": "Иди На Пару — 课程表",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f2f7fb",
+  "theme_color": "#6fa6cc",
+  "icons": [
+    { "src": "assets/icon.jpg", "sizes": "1254x1254", "type": "image/jpeg", "purpose": "any maskable" }
+  ]
+}
