@@ -223,7 +223,7 @@
     e._start = timeStart(e['时间']);
     e._status = e._status || 'normal';
     e._active = e._active !== false;
-    e._faculty = e._faculty || 'ВШУ МГУ';
+    e._faculty = e._faculty || 'ВШУИ МГУ';
     e['星期'] = e['星期'] || '周' + '一二三四五六日'[e._wd - 1];
     // 兼容云端/历史脏数据：КНР 只认班号 102。源文档曾把 (КНР) 误贴到 101 УП 抬头，
     // 会在筛选下拉里造出「1 курс гр. 101 УП (КНР)」这种不存在的班级。
@@ -1367,7 +1367,7 @@
 
   // 无课图标：默认猫爪；蓝女仆主题改用喷水的浅蓝小鲸鱼
   function pawSrc() {
-    return S.theme === 'maid' ? 'assets/whale-noclass.png?v=20261120d' : 'assets/paw.png?v=20261120d';
+    return S.theme === 'maid' ? 'assets/whale-noclass.png?v=20261120e' : 'assets/paw.png?v=20261120e';
   }
   function pawImg() {
     return '<img class="empty-paw" src="' + pawSrc() + '" alt="" aria-hidden="true">';
