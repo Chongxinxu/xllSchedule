@@ -36,6 +36,8 @@
   // 跨设备同步：Firestore 实时监听。个人数据按 uid 隔离，官方数据监听版本签名。
   let userWatchers = [], userSnaps = {};
   let versionWatch = null, lastVersionSig = '', cloudReloadTimer = null;
+  // 首次加载超时降级后，登录/保存时按需重连云端（新用户冷启动常见），并发调用共享同一请求
+  let cloudRetryPromise = null;
 
   function defaultProfile() {
     return {
@@ -353,9 +355,11 @@
     const p = S.profile;
     // 个人范围一律以当前页签为准，不能依赖可能被筛选逻辑清掉的 onlyMine 字段
     if (personalView()) {
-      // 个人日程与手动添加的事件永远属于「我的课表」
-      if (e._event || e._personal) { /* 保留 */ }
-      else {
+      // 个人日程永远属于「我的课表」；官方课程必须已经保存进个人课表
+      // （覆盖记录 deleted:false）。否则同班级的小组 B、历史周官方课程会被
+      // 顺带显示出来，看起来像是「保存课表」把它们也存了进去。
+      if (!e._event && !e._personal) return false;
+      if (!e._event) {
         const key = personalKey();
         // 尚未设置班级/教师：个人页不展示任何官方课程，只显示个人日程
         if (!key) return false;
@@ -472,6 +476,9 @@
     }
     S.profile.uid = user.uid;
     S.profile.email = user.email || '';
+    // 新用户首次打开常因 Firebase 冷启动超时而降级本地只读；此时登录成功说明网络已通，
+    // 先重连一次云端，否则 loadUserData / 保存课表都会因 !cloudOK 被拦住。
+    if (!S.cloudOK && S.firebaseReady) await retryCloud();
     await loadUserData();
     await resolveAdmin(user);
     watchUserData();                 // 登录后持续同步另一台设备对个人课表的修改
@@ -554,6 +561,16 @@
 
   function fallbackLocal(reason) {
     loadLocalData(true, reason);
+  }
+
+  // 降级为本地只读后，若网络其实已恢复（如新用户冷启动超时、随后登录成功），
+  // 按需重连云端一次。并发调用共享同一 Promise，避免重复读取与重复建监听。
+  function retryCloud() {
+    if (S.cloudOK || !S.firebaseReady) return Promise.resolve(S.cloudOK);
+    if (!cloudRetryPromise) {
+      cloudRetryPromise = loadCloud().finally(() => { cloudRetryPromise = null; });
+    }
+    return cloudRetryPromise;
   }
 
   function loadLocalData(showBanner, reason) {
@@ -1198,7 +1215,7 @@
   }
 
   // 无课图标：从效果图抠出的透明 PNG（两只猫爪斜向错开），形状与效果图完全一致
-  const PAW_SVG = '<img class="empty-paw" src="assets/paw.png?v=20261119y" alt="" aria-hidden="true">';
+  const PAW_SVG = '<img class="empty-paw" src="assets/paw.png?v=20261119z" alt="" aria-hidden="true">';
 
   function emptyHtml(msg, compact) {
     const sub = msg && msg !== T('card.noClass')
@@ -1957,7 +1974,8 @@
     });
     if (patch['日期'] !== undefined) patch['星期'] = '周' + '一二三四五六日'[weekdayOf(patch['日期']) - 1];
     const key = hashId(S.user.uid + '|' + id);
-    const rec = { uid: S.user.uid, entryId: id, patch: patch, deleted: false, createdAt: nowIso() };
+    const rec = { uid: S.user.uid, entryId: id, patch: patch, deleted: false,
+      createdAt: nowIso(), via: (S.overrides[id] || {}).via || 'bulk' };
     await FB.setDoc(FB.doc(db, 'userScheduleOverrides', key), rec);
     S.overrides[id] = { id: key, ...rec };
   }
@@ -1983,7 +2001,8 @@
     const key = hashId(S.user.uid + '|' + id);
     const old = S.overrides[id] || {};
     // 保留原 patch：只是从「我的课表」隐藏，不丢掉之前的个人修改
-    const rec = { uid: S.user.uid, entryId: id, patch: old.patch || {}, deleted: true, createdAt: nowIso() };
+    const rec = { uid: S.user.uid, entryId: id, patch: old.patch || {}, deleted: true,
+      createdAt: nowIso(), via: old.via || 'bulk' };
     await FB.setDoc(FB.doc(db, 'userScheduleOverrides', key), rec);
     S.overrides[id] = { id: key, ...rec };
     toast(T('edit.deleted'), 'ok'); render();
@@ -1996,7 +2015,8 @@
     // 恢复 = 取消隐藏并放回个人课表，而不是删除覆盖记录让课程只留在公共课表
     const rec = {
       uid: S.user.uid, entryId: id,
-      patch: (ov && ov.patch) || {}, deleted: false, createdAt: nowIso()
+      patch: (ov && ov.patch) || {}, deleted: false, createdAt: nowIso(),
+      via: (ov && ov.via) || 'bulk'
     };
     await FB.setDoc(FB.doc(db, 'userScheduleOverrides', key), rec);
     S.overrides[id] = { id: key, ...rec };
@@ -2021,7 +2041,7 @@
       const old = S.overrides[e.id] || {};
       return { id: e.id, rec: {
         uid: S.user.uid, entryId: e.id, patch: old.patch || {},
-        deleted: true, createdAt: nowIso()
+        deleted: true, createdAt: nowIso(), via: old.via || 'bulk'
       } };
     });
     try {
@@ -2050,7 +2070,7 @@
     const key = hashId(S.user.uid + '|' + id);
     const rec = {
       uid: S.user.uid, entryId: id,
-      patch: (old && old.patch) || {}, deleted: false, createdAt: nowIso()
+      patch: (old && old.patch) || {}, deleted: false, createdAt: nowIso(), via: 'manual'
     };
     try {
       await FB.setDoc(FB.doc(db, 'userScheduleOverrides', key), rec);
@@ -2060,12 +2080,17 @@
     } catch (e) { toast(e.message, 'error'); }
   }
 
-  // 保存课表：把当前视图里可见的公共课程整批写入个人课表（userScheduleOverrides），需登录。
-  // 再次保存会用当前视图覆盖之前的课表；两次操作之间加冷却，避免连点/重复提交。
+  // 保存课表：把当前教学周、当前公共筛选（班级/小组）下可见的官方课程写入个人课表。
+  // 不会把其它小组或其它教学周带进来；两次操作之间加冷却，避免连点/重复提交。
   let saveScheduleBusy = false;
   const SAVE_COOLDOWN_MS = 3000;
   async function saveScheduleToMine() {
     if (!S.user) return needLogin();
+    // 离线只读时先重连一次：新用户注册后 Firebase 可能刚就绪，避免误报「云端不可用」
+    if (!S.cloudOK && S.firebaseReady) {
+      toast(T('common.cloudLoading'));
+      await retryCloud();
+    }
     if (!S.cloudOK) { toast(T('admin.offline'), 'error'); return; }
     if (saveScheduleBusy) return;
     saveScheduleBusy = true;
@@ -2076,17 +2101,34 @@
       if (btn) { btn.classList.remove('cooldown'); btn.disabled = false; }
     }, SAVE_COOLDOWN_MS);
 
-    // 只保存当前锚点所在的「教学周」官方课程，与当前视图（周/日/列表）无关
+    // 只保存当前锚点所在的「教学周」官方课程，与当前视图（周/日/列表）无关。
+    // 小组以保存瞬间的公共筛选为准：选了 Группа А 就只存 A + 通用课，不存 B。
     const week = weekStart(S.anchor);
-    const list = mergedEntries().filter(inScope)
-      .filter(e => !e._event && e._week === week);
+    const f = publicFilterClone();
+    const list = mergedEntries().filter(e => {
+      if (e._event || e._week !== week) return false;
+      if (f.faculty && e._faculty !== f.faculty) return false;
+      if (f.group && e['班级'] !== f.group) return false;
+      if (f.teacher && e['教师'] !== f.teacher) return false;
+      if (f.subgroup) {
+        // 「Нет занятий」占位行不属于任何小组，选了小组时不保存
+        if (e['课程'] === 'Нет занятий') return false;
+        if (e['小组'] !== f.subgroup && e['小组'] !== '全部') return false;
+      }
+      const q = String(f.keyword || '').trim().toLowerCase();
+      if (q) {
+        const hay = [e['课程'], e._zh, e['教师'], e['班级'], e['教室'], e['授课形式']]
+          .join(' ').toLowerCase();
+        if (hay.indexOf(q) < 0) return false;
+      }
+      return true;
+    });
     if (!list.length) { toast(T('saveSchedule.empty'), 'error'); release(); return; }
     // 个人课表已有的课程不覆盖；仅「清空本周」隐藏过（deleted:true）的可重新加入
     const pending = list.filter(e => {
       const ov = S.overrides[e.id];
       return !ov || ov.deleted;
     });
-    if (!pending.length) { toast(T('saveSchedule.already'), 'ok'); release(); return; }
     const now = nowIso();
     const items = pending.map(e => {
       const old = S.overrides[e.id] || {};
@@ -2096,19 +2138,20 @@
         rec: {
           uid: S.user.uid, entryId: e.id,
           patch: old.patch || {},     // 保留此前手动改过的字段，不清空用户的编辑
-          deleted: false, createdAt: now
+          deleted: false, createdAt: now, via: 'bulk'
         }
       };
     });
     let ok = 0;
     try {
+      if (!pending.length) { toast(T('saveSchedule.already'), 'ok'); release(); return; }
       await chunkedBatch(items, (batch, it) => {
         batch.set(FB.doc(db, 'userScheduleOverrides', it.key), it.rec);
         ok++;
       });
       items.forEach(it => { S.overrides[it.entryId] = { id: it.key, ...it.rec }; });
       // 按用户所选班级保存时，把这个班级记成「我的班级」，个人课表即可显示对应课程
-      const picked = S.filters.group || '';
+      const picked = f.group || '';
       const savedGroups = uniq(items.map(it => {
         const e = S.entries.find(x => x.id === it.entryId);
         return e ? e['班级'] : '';
