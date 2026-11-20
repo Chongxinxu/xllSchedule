@@ -854,6 +854,7 @@
     $('guide-title').textContent = T(cfg.titleKey);
     $('guide-desc').textContent = T(cfg.descKey);
     $('guide-next').textContent = T(guideStep === GUIDE_STEPS.length - 1 ? 'guide.done' : 'guide.next');
+    $('guide-skip').textContent = T('guide.skip');
     positionGuideTip();
     // 让目标进入视口后再定位一次（移动端筛选栏可能需滚动）
     try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {}
@@ -1197,7 +1198,7 @@
   }
 
   // 无课图标：从效果图抠出的透明 PNG（两只猫爪斜向错开），形状与效果图完全一致
-  const PAW_SVG = '<img class="empty-paw" src="assets/paw.png?v=20261119x" alt="" aria-hidden="true">';
+  const PAW_SVG = '<img class="empty-paw" src="assets/paw.png?v=20261119y" alt="" aria-hidden="true">';
 
   function emptyHtml(msg, compact) {
     const sub = msg && msg !== T('card.noClass')
@@ -2430,7 +2431,8 @@
     $('nav-help').onclick = startGuide;
     $('guide-next').onclick = nextGuideStep;
     $('guide-skip').onclick = endGuide;
-    $('guide-mask').addEventListener('click', e => { if (e.target === $('guide-mask')) endGuide(); });
+    // 点灰色遮罩 = 下一步：第1步进第2步，第2步则完成引导（与"下一步/引导完成"一致）
+    $('guide-mask').addEventListener('click', e => { if (e.target === $('guide-mask')) nextGuideStep(); });
     $('nav-account').onclick = () => { if (!S.user) openAuth('login'); else openProfile(); closeSidebar(); };
     $('side-toggle').onclick = () => { S.sidebarOpen ? closeSidebar() : openSidebar(); };
 
