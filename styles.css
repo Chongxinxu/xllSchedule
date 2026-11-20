@@ -72,36 +72,37 @@ html[data-theme="light"] {
 }
 
 /* 护眼暖色（纸质米黄） */
+/* 橘白（原护眼位 · 奶橘底 + 橙色点缀，配橘白猫） */
 html[data-theme="sepia"] {
-  --bg: #f4efe4;
-  --surface: #fdfaf2;
-  --surface-2: #efe8d8;
-  --surface-3: #e4dbc6;
-  --line: #ddd2ba;
-  --line-strong: #c4b695;
-  --text: #3d3527;
-  --muted: #7d725c;
-  --yellow: #d9a520;
-  --yellow-soft: #faf0d2;
-  --yellow-dark: #7a5c00;
-  --yellow-line: #e6c766;
-  --ink: #4a3f2c;
+  --bg: #fff6ea;
+  --surface: #fffdf8;
+  --surface-2: #fdf0de;
+  --surface-3: #f6e2c6;
+  --line: #f0dcc1;
+  --line-strong: #dfc29c;
+  --text: #4a3422;
+  --muted: #9a7a57;
+  --yellow: #e89b45;
+  --yellow-soft: #fff0da;
+  --yellow-dark: #b56a17;
+  --yellow-line: #f2c78d;
+  --ink: #d97b28;
   --on-ink: #ffffff;
-  --blue: #2f6d95;
-  --blue-soft: #e2edf2;
-  --red: #a83b2c;
-  --red-soft: #f6e3dd;
-  --green: #276b48;
-  --green-soft: #e0eee3;
-  --purple: #66529c;
-  --purple-soft: #ece6f5;
-  --note-bg: #faf0d2; --note-fg: #6b5200; --note-strong: #8a6d00;
-  --star-bg: #f5e3a0; --star-fg: #8a6d00;
-  --starred-bg: #fbf6e2; --starred-line: #d9a520; --starred-line2: #b8860b; --starred-ring: #e6c766;
-  --overlay: rgba(60, 50, 30, .5);
-  --loading-bg: rgba(244, 239, 228, .85);
-  --shadow: 0 1px 2px rgba(80, 60, 20, .08);
-  --action-a: #b8894c; --action-b: #8e6330; --action-line: #7c5427;
+  --blue: #b96a1e;
+  --blue-soft: #fff0da;
+  --red: #b8513b;
+  --red-soft: #fae6df;
+  --green: #3f7a4f;
+  --green-soft: #e6f0e2;
+  --purple: #8a6a9c;
+  --purple-soft: #f2ecf5;
+  --note-bg: #fff0da; --note-fg: #8a5a1c; --note-strong: #b56a17;
+  --star-bg: #f8dcaf; --star-fg: #b56a17;
+  --starred-bg: #fff8ec; --starred-line: #e89b45; --starred-line2: #b56a17; --starred-ring: #f2c78d;
+  --overlay: rgba(90, 55, 20, .45);
+  --loading-bg: rgba(255, 246, 234, .86);
+  --shadow: 0 1px 2px rgba(120, 70, 20, .08);
+  --action-a: #e89b45; --action-b: #c56a1e; --action-line: #aa5814;
 }
 /* 粉猫（东方短毛猫 · 玫瑰粉） */
 html[data-theme="pink"] {
@@ -136,6 +137,39 @@ html[data-theme="pink"] {
   --shadow: 0 1px 2px rgba(160, 80, 110, .08);
   --action-a: #e69ab4; --action-b: #c4678a; --action-line: #b5587b;
 }
+/* 奶牛猫（奶白底 + 炭黑点缀，粉色呼应鼻头） */
+html[data-theme="cow"] {
+  --bg: #f8f7f3;
+  --surface: #ffffff;
+  --surface-2: #f1f0e9;
+  --surface-3: #e7e5dc;
+  --line: #dedcd2;
+  --line-strong: #c3c0b4;
+  --text: #2b2b29;
+  --muted: #75746c;
+  --yellow: #4a4a46;
+  --yellow-soft: #eceae2;
+  --yellow-dark: #2b2b29;
+  --yellow-line: #c3c0b4;
+  --ink: #2b2b29;
+  --on-ink: #ffffff;
+  --blue: #3f3f3c;
+  --blue-soft: #eeece5;
+  --red: #b4514b;
+  --red-soft: #f9e8e6;
+  --green: #3f7a5a;
+  --green-soft: #e7f0e8;
+  --purple: #6a5b83;
+  --purple-soft: #efecf4;
+  --note-bg: #f1efe7; --note-fg: #57564f; --note-strong: #3f3f3c;
+  --star-bg: #e7e5dc; --star-fg: #4a4a46;
+  --starred-bg: #f7f6f0; --starred-line: #4a4a46; --starred-line2: #2b2b29; --starred-ring: #c3c0b4;
+  --overlay: rgba(40, 40, 38, .46);
+  --loading-bg: rgba(248, 247, 243, .86);
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(40, 40, 30, .07);
+  --action-a: #5c5c58; --action-b: #2b2b29; --action-line: #232321;
+}
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
@@ -161,7 +195,7 @@ a { color: var(--blue); }
 /* 左下角建筑线稿水印：作为背景，不遮挡导航点击 */
 .sidebar::after {
   content: ''; position: absolute; left: 0; bottom: 0; width: 100%; height: 350px;
-  background: url('mgu-building.png?v=20261120a') no-repeat left bottom;
+  background: url('mgu-building.png?v=20261120b') no-repeat left bottom;
   background-size: contain; opacity: .28; pointer-events: none; z-index: 0;
 }
 .sidebar > * { position: relative; z-index: 1; }
@@ -477,10 +511,10 @@ table.grid-table tr.past td { opacity: .5; }
 .guide-tip.hidden { display: none; }
 .guide-tip-step { display: table; font-size: 11px; font-weight: 700; letter-spacing: .5px;
   color: #fff; background: var(--blue, #4a7ba8); border-radius: 20px; padding: 2px 10px; margin-bottom: 8px; }
-/* 引导猫咪：跟随当前主题，从弹窗右上角探出头，轻微上下浮动 */
-.guide-cat { position: absolute; top: -34px; right: 8px; width: 50px; height: 50px;
-  object-fit: contain; pointer-events: none; z-index: 1;
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .22)); animation: guideCatFloat 2.4s ease-in-out infinite; }
+/* 引导猫咪：跟随当前主题，完整显示在弹窗右上角内部（不探出，避免被高亮目标遮挡），轻微上下浮动 */
+.guide-cat { position: absolute; top: 6px; right: 8px; width: 42px; height: 42px;
+  object-fit: contain; pointer-events: none; z-index: 2;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .18)); animation: guideCatFloat 2.4s ease-in-out infinite; }
 @keyframes guideCatFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 .guide-tip-desc { margin: 0 0 12px; font-size: 12.5px; line-height: 1.6; color: var(--muted); }
 .guide-tip-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; }

@@ -817,6 +817,7 @@
     $('theme-lb-light').textContent = T('theme.light');
     $('theme-lb-sepia').textContent = T('theme.sepia');
     $('theme-lb-pink').textContent = T('theme.pink');
+    $('theme-lb-cow').textContent = T('theme.cow');
     refreshCatSkin();
     updateSpaceTabs();
     initFilterOptions();
@@ -1025,8 +1026,9 @@
     const THEME_CAT = {
       abyss: { cat: 'cat-abyssinian-blue.png' },
       light: { cat: 'cat-maine.png' },
-      sepia: { cat: 'cat-tortie.png' },
-      pink: { cat: 'cat-oriental.png' }
+      sepia: { cat: 'cat-orange-white.png' },
+      pink: { cat: 'cat-oriental.png' },
+      cow: { cat: 'cat-cow.png' }
     };
     const tc = THEME_CAT[S.theme] || THEME_CAT.abyss;
     const bubble = $('float-bubble');
@@ -1038,7 +1040,7 @@
 
   // 界面皮肤：data-theme 切换整套 CSS 变量。游客存本机；登录用户同时写入账户
   // users.theme，换设备登录自动同步。改动仅在本地迭代，不推送线上。
-  const THEMES = ['abyss', 'light', 'sepia', 'pink'];
+  const THEMES = ['abyss', 'light', 'sepia', 'pink', 'cow'];
   function applyTheme() {
     if (THEMES.indexOf(S.theme) < 0) S.theme = 'abyss';
     document.documentElement.setAttribute('data-theme', S.theme);
@@ -1284,7 +1286,7 @@
   }
 
   // 无课图标：从效果图抠出的透明 PNG（两只猫爪斜向错开），形状与效果图完全一致
-  const PAW_SVG = '<img class="empty-paw" src="assets/paw.png?v=20261120a" alt="" aria-hidden="true">';
+  const PAW_SVG = '<img class="empty-paw" src="assets/paw.png?v=20261120b" alt="" aria-hidden="true">';
 
   function emptyHtml(msg, compact) {
     const sub = msg && msg !== T('card.noClass')
