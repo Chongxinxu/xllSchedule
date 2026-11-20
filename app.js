@@ -1045,14 +1045,39 @@
       sepia: { cat: 'cat-orange-white.png' },
       pink: { cat: 'cat-oriental.png' },
       cow: { cat: 'cat-cow.png' },
-      maid: { cat: 'deepseek-liezui-xiaorong.png' }
+      // 蓝女仆：标题旁咧嘴头像、教学周旁动图、引导弹窗问号图、浮猫用 banner 小人
+      maid: {
+        cat: 'deepseek-liezui-xiaorong.png',
+        title: 'deepseek-liezui-xiaorong.png',
+        wb: 'deepseek-zha-jin-fanwan.gif',
+        guide: 'deepseek_title.jpg',
+        float: 'deepseek_banner.png'
+      }
     };
     const tc = THEME_CAT[S.theme] || THEME_CAT.abyss;
     const bubble = $('float-bubble');
     if (bubble) bubble.textContent = T('cat.bubble');
-    document.querySelectorAll('#title-cat, #wb-cat, #float-cat-img, #guide-cat')
-      .forEach(img => { if (img) img.src = 'assets/' + tc.cat; });
+    const setCat = (id, file) => { const img = $(id); if (img) img.src = 'assets/' + file; };
+    setCat('title-cat', tc.title || tc.cat);
+    setCat('wb-cat', tc.wb || tc.cat);
+    setCat('float-cat-img', tc.float || tc.cat);
+    setCat('guide-cat', tc.guide || tc.cat);
+    document.querySelectorAll('.empty-paw').forEach(img => { img.src = pawSrc(); });
+    setupBannerCat();
     const wbWeek = $('wb-week'); if (wbWeek) wbWeek.textContent = weekLabel(S.anchor);
+  }
+
+  // 教学周 banner 里的小人也能点击：缩放反馈 + 计入隐藏皮肤解锁
+  function setupBannerCat() {
+    const cat = $('wb-cat');
+    if (!cat || cat._tapReady) return;
+    cat._tapReady = true;
+    cat.style.cursor = 'pointer';
+    cat.addEventListener('click', () => {
+      registerSkinTap();
+      cat.classList.remove('pop'); void cat.offsetWidth; cat.classList.add('pop');
+      setTimeout(() => cat.classList.remove('pop'), 340);
+    });
   }
 
   // 界面皮肤：data-theme 切换整套 CSS 变量。游客存本机；登录用户同时写入账户
@@ -1303,7 +1328,7 @@
   function cardHtml(e, compact) {
     if (e['课程'] === 'Нет занятий') {
       return '<div class="no-class' + (compact ? ' compact' : '') + '" data-id="' + esc(e.id) + '">' +
-        PAW_SVG + '<span>' + esc(T('card.noClass')) + '</span></div>';
+        pawImg() + '<span>' + esc(T('card.noClass')) + '</span></div>';
     }
     const cls = ['card'];
     // 仅真正改过（或有备注）的课程用黄色强调；单纯「保存课表」保持官方样式
@@ -1340,13 +1365,18 @@
     return html + '</div>';
   }
 
-  // 无课图标：从效果图抠出的透明 PNG（两只猫爪斜向错开），形状与效果图完全一致
-  const PAW_SVG = '<img class="empty-paw" src="assets/paw.png?v=20261120c" alt="" aria-hidden="true">';
+  // 无课图标：默认猫爪；蓝女仆主题改用喷水的浅蓝小鲸鱼
+  function pawSrc() {
+    return S.theme === 'maid' ? 'assets/whale-noclass.png?v=20261120d' : 'assets/paw.png?v=20261120d';
+  }
+  function pawImg() {
+    return '<img class="empty-paw" src="' + pawSrc() + '" alt="" aria-hidden="true">';
+  }
 
   function emptyHtml(msg, compact) {
     const sub = msg && msg !== T('card.noClass')
       ? '<span class="empty-sub">' + esc(msg) + '</span>' : '';
-    return '<div class="empty-state' + (compact ? ' compact' : '') + '">' + PAW_SVG +
+    return '<div class="empty-state' + (compact ? ' compact' : '') + '">' + pawImg() +
       '<strong>' + esc(T('card.noClass')) + '</strong>' + sub + '</div>';
   }
 
