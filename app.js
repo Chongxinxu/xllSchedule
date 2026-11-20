@@ -1367,7 +1367,7 @@
 
   // 无课图标：默认猫爪；蓝女仆主题改用喷水的浅蓝小鲸鱼
   function pawSrc() {
-    return S.theme === 'maid' ? 'assets/whale-noclass.png?v=20261120e' : 'assets/paw.png?v=20261120e';
+    return S.theme === 'maid' ? 'assets/whale-noclass.png?v=20261120f' : 'assets/paw.png?v=20261120f';
   }
   function pawImg() {
     return '<img class="empty-paw" src="' + pawSrc() + '" alt="" aria-hidden="true">';
@@ -1683,6 +1683,11 @@
     const btn = $('auth-submit'); btn.disabled = true;
     try {
       if (S.authMode === 'register') {
+        // 注册新账户前先清掉本机遗留的隐藏皮肤解锁记录，避免 onAuthStateChanged
+        // 把上一个账户的解锁残留迁移进新账户（新账户必须从锁定状态开始）。
+        try { localStorage.removeItem('cm.unlockedSkins'); } catch (e) { /* 无痕模式 */ }
+        if (S.profile) S.profile.unlockedSkins = [];
+        unlockMigrated = false;
         const cred = await FB.createUserWithEmailAndPassword(auth, email, pwd);
         // 注册不再选身份：统一按学生建档；教师/班级偏好仍在个人设置里配置
         await FB.setDoc(FB.doc(db, 'users', cred.user.uid), Object.assign(defaultProfile(), {
@@ -2643,7 +2648,18 @@
     document.querySelectorAll('.theme-opt').forEach(btn => btn.onclick = () => setTheme(btn.dataset.theme));
     document.addEventListener('click', closeThemeMenu);
     $('btn-login').onclick = () => openAuth('login');
-    $('btn-logout').onclick = () => { if (S.firebaseReady) FB.signOut(auth); };
+    $('btn-logout').onclick = () => {
+      // 退出登录：皮肤回到初始蓝色 abyss。账户里的 theme 保留，下次登录仍会同步回来
+      S.theme = 'abyss';
+      S.themePreview = false;
+      // 清掉本机的隐藏皮肤解锁残留：否则换账号/注册新号时，applyUserSnaps 会误把
+      // 旧账号遗留的本机解锁记录迁移进新账户，导致新账户默认解锁隐藏皮肤。
+      try { localStorage.removeItem('cm.unlockedSkins'); } catch (e) { /* 无痕模式 */ }
+      if (S.profile) S.profile.unlockedSkins = [];
+      unlockMigrated = false;
+      applyTheme();
+      if (S.firebaseReady) FB.signOut(auth);
+    };
     $('btn-profile').onclick = openProfile;
 
     ['f-faculty', 'f-group', 'f-teacher', 'f-week', 'f-subgroup'].forEach(id => {
