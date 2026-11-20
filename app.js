@@ -38,10 +38,11 @@
   let versionWatch = null, lastVersionSig = '', cloudReloadTimer = null;
   // 首次加载超时降级后，登录/保存时按需重连云端（新用户冷启动常见），并发调用共享同一请求
   let cloudRetryPromise = null;
+  let themeMigrated = false;   // 老账户缺 theme 字段时只补写一次，避免实时监听反复触发
 
   function defaultProfile() {
     return {
-      uid: '', email: '', name: '', role: 'student', lang: 'zh',
+      uid: '', email: '', name: '', role: 'student', lang: 'zh', theme: 'abyss',
       faculty: '', program: '', group: '', teacher: '', defaultBy: 'group', filters: null
     };
   }
@@ -57,6 +58,7 @@
   const S = {
     lang: localStorage.getItem('cm.lang') || 'zh',
     theme: localStorage.getItem('cm.theme') || 'abyss',
+    themePreview: false,   // ?theme=xxx 仅本次预览，不写本机/账户，也不被云端同步覆盖
     view: window.innerWidth <= 760 ? 'day' : 'week',
     anchor: '',
     user: null,
@@ -464,10 +466,13 @@
 
   async function onAuthChanged(user) {
     stopUserWatch();                 // 切账号/退出时先停掉旧 UID 的监听，避免串号
+    themeMigrated = false;           // 换账号后「老账户补写主题」重新判断
+    resetSkinGate();                 // 每次登录/切换账号/退出都重新锁定皮肤按钮
     S.user = user;
     if (!user) {
       S.profile = defaultProfile();
       S.profile.lang = S.lang;
+      S.profile.theme = S.theme;     // 游客皮肤仍是本机当前选择
       S.overrides = {}; S.events = []; S.notes = {};
       S.isAdmin = false;
       if (S.space === 'mine') { S.space = 'public'; S.filters = publicFilterClone(); updateSpaceTabs(); }
@@ -614,6 +619,23 @@
       S.profile = Object.assign(defaultProfile(), { uid: u.uid, email: u.email, lang: S.lang });
     }
     if (S.profile.lang && S.profile.lang !== S.lang) { S.lang = S.profile.lang; applyI18n(); }
+    // 皮肤跟随账户：云端记录了合法主题就以账户为准（换设备登录后自动同步）；
+    // 老账户没有 theme 字段时把本机当前主题补写进账户，保持用户原有外观。
+    // ?theme=xxx 预览期间不读取/不写回，避免预览值污染账户。
+    if (!S.themePreview && S.cloudOK) {
+      const cloudTheme = profileSnap && profileSnap.exists() ? ((profileSnap.data() || {}).theme || '') : '';
+      if (cloudTheme && THEMES.indexOf(cloudTheme) >= 0) {
+        if (cloudTheme !== S.theme) {
+          S.theme = cloudTheme;
+          try { localStorage.setItem('cm.theme', cloudTheme); } catch (e) { /* 无痕模式 */ }
+          applyTheme();
+        }
+      } else if (profileSnap && profileSnap.exists() && !cloudTheme && !themeMigrated) {
+        themeMigrated = true;
+        persistTheme(S.theme);
+      }
+    }
+    if (!S.themePreview) S.profile.theme = S.theme;
     if (useLocalFilter) {
       S.filtersPublic = hasAnyFilter(localPublic)
         ? localPublic
@@ -793,9 +815,8 @@
     $('theme-title').textContent = T('theme.title');
     const tab = $('theme-lb-abyss'); if (tab) tab.textContent = T('theme.abyss');
     $('theme-lb-light').textContent = T('theme.light');
-    $('theme-lb-dark').textContent = T('theme.dark');
     $('theme-lb-sepia').textContent = T('theme.sepia');
-    $('theme-lb-ocean').textContent = T('theme.ocean');
+    $('theme-lb-pink').textContent = T('theme.pink');
     refreshCatSkin();
     updateSpaceTabs();
     initFilterOptions();
@@ -965,7 +986,8 @@
           }));
         } catch (err) { /* 无痕模式 */ }
       } else {
-        // 点击反馈：缩放动画 + 随机喵语
+        // 点击反馈：缩放动画 + 随机喵语；连续点击可解锁皮肤按钮
+        registerSkinTap();
         cat.classList.remove('pop'); void cat.offsetWidth; cat.classList.add('pop');
         setTimeout(() => cat.classList.remove('pop'), 340);
         const bubble = $('float-bubble');
@@ -1003,9 +1025,8 @@
     const THEME_CAT = {
       abyss: { cat: 'cat-abyssinian-blue.png' },
       light: { cat: 'cat-maine.png' },
-      dark: { cat: 'cat-cow.png' },
       sepia: { cat: 'cat-tortie.png' },
-      ocean: { cat: 'cat-russian-blue.png' }
+      pink: { cat: 'cat-oriental.png' }
     };
     const tc = THEME_CAT[S.theme] || THEME_CAT.abyss;
     const bubble = $('float-bubble');
@@ -1015,8 +1036,9 @@
     const wbWeek = $('wb-week'); if (wbWeek) wbWeek.textContent = weekLabel(S.anchor);
   }
 
-  // 界面皮肤：data-theme 切换整套 CSS 变量，选择存本机。改动仅在本地迭代，不推送线上。
-  const THEMES = ['abyss', 'light', 'dark', 'sepia', 'ocean'];
+  // 界面皮肤：data-theme 切换整套 CSS 变量。游客存本机；登录用户同时写入账户
+  // users.theme，换设备登录自动同步。改动仅在本地迭代，不推送线上。
+  const THEMES = ['abyss', 'light', 'sepia', 'pink'];
   function applyTheme() {
     if (THEMES.indexOf(S.theme) < 0) S.theme = 'abyss';
     document.documentElement.setAttribute('data-theme', S.theme);
@@ -1027,12 +1049,56 @@
   function setTheme(name) {
     if (THEMES.indexOf(name) < 0) return;
     S.theme = name;
+    S.profile.theme = name;
+    S.themePreview = false;   // 用户主动选择即退出预览态
     try { localStorage.setItem('cm.theme', name); } catch (e) { /* 无痕模式 */ }
     applyTheme();
     closeThemeMenu();
+    persistTheme(name);
+  }
+  // 把皮肤写进用户档案：setDoc+merge 兼容尚无档案的老用户，且不改 uid/role（规则要求）
+  async function persistTheme(name) {
+    if (!S.user || !S.cloudOK || S.themePreview) return;
+    try {
+      await FB.setDoc(FB.doc(db, 'users', S.user.uid), {
+        theme: name, uid: S.user.uid, email: S.user.email || '',
+        role: S.profile.role === 'teacher' ? 'teacher' : 'student'
+      }, { merge: true });
+    } catch (e) { console.warn('账户皮肤保存失败：', e); }
   }
   function closeThemeMenu() { const m = $('theme-menu'); if (m) m.classList.add('hidden'); }
   function toggleThemeMenu() { const m = $('theme-menu'); if (m) m.classList.toggle('hidden'); }
+
+  // 皮肤按钮的临时解锁门槛：登录 + 10 秒内点击右下角浮动猫咪 20 次。
+  // 解锁只在当前页面会话内有效：重新登录、切换账号、离开网页（页面隐藏/关闭）都会失效。
+  // 随时注销方式：把 enabled 改成 false，或用 ?skinGate=0 打开页面；
+  // ?skinGate=reset 可立即重新锁定。以上都只影响这个开关，不影响其它功能。
+  const SKIN_GATE = { enabled: true, clicks: 20, windowMs: 10000 };
+  let skinTapTimes = [];
+  let skinUnlockedFlag = false;
+  function skinGateEnabled() {
+    if (!SKIN_GATE.enabled) return false;
+    try { if (/[?&]skinGate=0(?:&|$)/.test(window.location.search)) return false; } catch (e) { /* 非浏览器 */ }
+    return true;
+  }
+  function skinUnlocked() {
+    return !skinGateEnabled() || skinUnlockedFlag;
+  }
+  function resetSkinGate() {
+    skinUnlockedFlag = false;
+    skinTapTimes = [];
+  }
+  function registerSkinTap() {
+    if (!skinGateEnabled() || skinUnlocked()) return;
+    const now = Date.now();
+    skinTapTimes = skinTapTimes.filter(t => now - t <= SKIN_GATE.windowMs);
+    skinTapTimes.push(now);
+    if (skinTapTimes.length < SKIN_GATE.clicks) return;
+    skinTapTimes = [];
+    skinUnlockedFlag = true;
+    updateChrome();
+    toast(T('skin.unlocked'), 'ok');
+  }
 
   function switchLang(lang) {
     S.lang = lang;
@@ -1052,6 +1118,9 @@
       : (S.user ? T('nav.user') : T('nav.guest'));
     $('user-label').textContent = S.user ? (S.profile.name || S.user.email || '') : '';
     $('btn-login').classList.toggle('hidden', !!S.user);
+    // 皮肤切换按钮：登录 + 解锁门槛（10 秒内点浮猫 20 次）两个条件都满足才显示
+    const themeSwitch = $('theme-switch');
+    if (themeSwitch) themeSwitch.classList.toggle('hidden', !S.user || !skinUnlocked());
     // 「个人设置」入口按需求屏蔽，永久隐藏（底层函数保留，不影响其他调用）
     $('btn-profile').classList.add('hidden');
     $('btn-logout').classList.toggle('hidden', !S.user);
@@ -1215,7 +1284,7 @@
   }
 
   // 无课图标：从效果图抠出的透明 PNG（两只猫爪斜向错开），形状与效果图完全一致
-  const PAW_SVG = '<img class="empty-paw" src="assets/paw.png?v=20261119z" alt="" aria-hidden="true">';
+  const PAW_SVG = '<img class="empty-paw" src="assets/paw.png?v=20261120a" alt="" aria-hidden="true">';
 
   function emptyHtml(msg, compact) {
     const sub = msg && msg !== T('card.noClass')
@@ -1531,7 +1600,8 @@
         // 注册不再选身份：统一按学生建档；教师/班级偏好仍在个人设置里配置
         await FB.setDoc(FB.doc(db, 'users', cred.user.uid), Object.assign(defaultProfile(), {
           uid: cred.user.uid, email: email, name: $('auth-name').value.trim(),
-          role: 'student', lang: S.lang, createdAt: nowIso()
+          role: 'student', lang: S.lang, theme: S.themePreview ? 'abyss' : S.theme,
+          createdAt: nowIso()
         }));
       } else {
         await FB.signInWithEmailAndPassword(auth, email, pwd);
@@ -2683,6 +2753,24 @@
         S.localAdmin = false;
         writeStore('cm.localAdmin', false);
       }
+    } catch (e) { /* 非浏览器环境 */ }
+    // 皮肤预览：?theme=pink 仅本次会话生效，不写入 localStorage/账户，也不被云端同步覆盖
+    try {
+      const m = window.location.search.match(/[?&]theme=([a-z]+)/i);
+      if (m && THEMES.indexOf(m[1].toLowerCase()) >= 0) {
+        S.theme = m[1].toLowerCase();
+        S.themePreview = true;
+      }
+    } catch (e) { /* 非浏览器环境 */ }
+    // ?skinGate=reset 立即重新锁定皮肤按钮（不影响其它功能）
+    try {
+      if (/[?&]skinGate=reset(?:&|$)/.test(window.location.search)) resetSkinGate();
+    } catch (e) { /* 非浏览器环境 */ }
+    // 离开网页（切走标签页/最小化/关闭）后重新锁定，回到页面需再次点猫解锁
+    try {
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) { resetSkinGate(); updateChrome(); }
+      });
     } catch (e) { /* 非浏览器环境 */ }
     S.space = 'public';   // 每次进入先回到公共课表；个人页签需手动切换并登录
     applyTheme();
