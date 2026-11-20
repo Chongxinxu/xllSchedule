@@ -131,13 +131,19 @@
   function addDays(s, n) { const d = parseDay(s); d.setDate(d.getDate() + n); return ymd(d); }
   function weekStart(s) { const d = parseDay(s); const off = (d.getDay() + 6) % 7; d.setDate(d.getDate() - off); return ymd(d); }
   function weekdayOf(s) { return WD_FROM_JS[parseDay(s).getDay()] || 7; }
+  // 教学周编号：数据里最早的一周记为第 1 周，之后按日历周依次顺延
+  // （不再用自然年的第 N 周，避免跨年时出现「第 47 周」这类跳号）
+  function firstDataWeek() {
+    const weeks = S.dict && S.dict.weeks;
+    return (weeks && weeks.length) ? weeks[0] : '';
+  }
+  function weekNumber(s) {
+    const base = firstDataWeek(), w = weekStart(s);
+    if (!base || w <= base) return 1;
+    return Math.round((parseDay(w) - parseDay(base)) / (7 * 86400000)) + 1;
+  }
   function weekLabel(s) {
-    const d = parseDay(s), target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    const dayNum = target.getUTCDay() || 7;
-    target.setUTCDate(target.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
-    const n = Math.ceil((((target - yearStart) / 86400000) + 1) / 7);
-    return T('view.weekOf', { n: n });
+    return T('view.weekOf', { n: weekNumber(s) });
   }
   function timeRange(s) {
     const m = String(s || '').match(/(\d{1,2})[:.](\d{2})\s*[-–—]?\s*(\d{1,2})[:.](\d{2})/);
@@ -791,8 +797,12 @@
     const mine = S.space === 'mine';
     // 个人课表隐藏公共筛选控件；公共筛选条件仍保留在 S.filtersPublic 中
     document.querySelectorAll('.public-only').forEach(el => el.classList.toggle('hidden', mine));
-    // 个人视图 banner 收缩：猫咪与教学周徽标挨在一起，不留大片空白
-    const banner = $('week-banner'); if (banner) banner.classList.toggle('compact', mine);
+    // banner 与个人视图一致：紧凑布局，猫咪与教学周徽标挨在一起；公共视图再隐藏中间提示
+    const banner = $('week-banner');
+    if (banner) {
+      banner.classList.add('compact');
+      banner.classList.toggle('no-note', !mine);
+    }
     // 「我的班级」筛选器与信息只在个人课表显示
     document.querySelectorAll('.mine-only').forEach(el => el.classList.toggle('hidden', !mine));
     const cb = $('f-onlymine'); if (cb) cb.checked = mine;
@@ -806,6 +816,87 @@
     if (note) note.textContent = T(!mine ? 'page.info'
       : (!S.user ? 'detail.needLogin'
         : (personalKey() ? 'page.mine' : 'page.mineSetup')));
+  }
+
+  /* ---- 新手引导：两步（选班级 → 保存课表），置灰页面只高亮当前目标 ---- */
+  const GUIDE_STEPS = [
+    { target: 'f-group', titleKey: 'guide.step1Title', descKey: 'guide.step1Desc' },
+    { target: 'btn-save-schedule', titleKey: 'guide.step2Title', descKey: 'guide.step2Desc' }
+  ];
+  let guideStep = -1;   // -1 = 未开启
+  let guideOnGroupChange = null;
+
+  function guideFocusEl() {
+    return guideStep >= 0 && guideStep < GUIDE_STEPS.length
+      ? $(GUIDE_STEPS[guideStep].target) : null;
+  }
+  function positionGuideTip() {
+    const el = guideFocusEl(), tip = $('guide-tip');
+    if (!el || !tip) return;
+    const r = el.getBoundingClientRect();
+    // 先放在可见位置再量高度，避免首次定位时高度为 0
+    const w = tip.offsetWidth || 280, h = tip.offsetHeight || 150;
+    let left = r.left + r.width / 2 - w / 2;
+    left = Math.max(12, Math.min(left, window.innerWidth - w - 12));
+    let top = r.bottom + 12;
+    if (top + h > window.innerHeight - 12) top = r.top - h - 12;
+    if (top < 12) top = 12;
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  }
+  function renderGuideStep() {
+    document.querySelectorAll('.guide-focus').forEach(el => el.classList.remove('guide-focus'));
+    if (guideStep < 0 || guideStep >= GUIDE_STEPS.length) return;
+    const cfg = GUIDE_STEPS[guideStep], el = $(cfg.target);
+    if (!el) { endGuide(); return; }
+    el.classList.add('guide-focus');
+    $('guide-step').textContent = (guideStep + 1) + ' / ' + GUIDE_STEPS.length;
+    $('guide-title').textContent = T(cfg.titleKey);
+    $('guide-desc').textContent = T(cfg.descKey);
+    $('guide-next').textContent = T(guideStep === GUIDE_STEPS.length - 1 ? 'guide.done' : 'guide.next');
+    positionGuideTip();
+    // 让目标进入视口后再定位一次（移动端筛选栏可能需滚动）
+    try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {}
+    setTimeout(positionGuideTip, 320);
+  }
+  function nextGuideStep() {
+    if (guideStep < 0) return;
+    // 进入下一步前，解除第1步的「选完班级自动前进」监听
+    if (guideStep === 0 && guideOnGroupChange) {
+      $('f-group').removeEventListener('change', guideOnGroupChange);
+      guideOnGroupChange = null;
+    }
+    guideStep++;
+    if (guideStep >= GUIDE_STEPS.length) { endGuide(); return; }
+    renderGuideStep();
+  }
+  function endGuide() {
+    if (guideStep < 0) return;
+    if (guideOnGroupChange) { $('f-group').removeEventListener('change', guideOnGroupChange); guideOnGroupChange = null; }
+    document.querySelectorAll('.guide-focus').forEach(el => el.classList.remove('guide-focus'));
+    $('guide-mask').classList.add('hidden');
+    $('guide-tip').classList.add('hidden');
+    guideStep = -1;
+    window.removeEventListener('resize', positionGuideTip);
+    window.removeEventListener('scroll', positionGuideTip, true);
+    document.removeEventListener('keydown', guideOnKey);
+  }
+  function guideOnKey(e) { if (e.key === 'Escape') endGuide(); }
+  function startGuide() {
+    if (guideStep >= 0) return;
+    // 引导目标（班级筛选、保存课表）都在公共视图；若当前在个人视图先切过去
+    if (S.space !== 'public') setSpace('public');
+    guideStep = 0;
+    $('guide-mask').classList.remove('hidden');
+    $('guide-tip').classList.remove('hidden');
+    renderGuideStep();
+    // 第1步：选好班级后自动进入第2步
+    guideOnGroupChange = () => { if (guideStep === 0) nextGuideStep(); };
+    $('f-group').addEventListener('change', guideOnGroupChange);
+    window.addEventListener('resize', positionGuideTip);
+    window.addEventListener('scroll', positionGuideTip, true);
+    document.addEventListener('keydown', guideOnKey);
+    closeSidebar();
   }
 
   // 右下角浮动猫咪：可拖动（位置存本机）、点击有缩放反馈并随机切换气泡喵语
@@ -901,7 +992,7 @@
     const tc = THEME_CAT[S.theme] || THEME_CAT.abyss;
     const bubble = $('float-bubble');
     if (bubble) bubble.textContent = T('cat.bubble');
-    document.querySelectorAll('#title-cat, #wb-cat, #float-cat-img')
+    document.querySelectorAll('#title-cat, #wb-cat, #float-cat-img, #guide-cat')
       .forEach(img => { if (img) img.src = 'assets/' + tc.cat; });
     const wbWeek = $('wb-week'); if (wbWeek) wbWeek.textContent = weekLabel(S.anchor);
   }
@@ -1106,7 +1197,7 @@
   }
 
   // 无课图标：从效果图抠出的透明 PNG（两只猫爪斜向错开），形状与效果图完全一致
-  const PAW_SVG = '<img class="empty-paw" src="assets/paw.png?v=20261119u" alt="" aria-hidden="true">';
+  const PAW_SVG = '<img class="empty-paw" src="assets/paw.png?v=20261119x" alt="" aria-hidden="true">';
 
   function emptyHtml(msg, compact) {
     const sub = msg && msg !== T('card.noClass')
@@ -1984,11 +2075,19 @@
       if (btn) { btn.classList.remove('cooldown'); btn.disabled = false; }
     }, SAVE_COOLDOWN_MS);
 
-    // 不排除已保存的课程——再次点击时用当前视图重新覆盖（保留手动改过的字段）
-    const list = rangeEntries().filter(e => !e._event);
+    // 只保存当前锚点所在的「教学周」官方课程，与当前视图（周/日/列表）无关
+    const week = weekStart(S.anchor);
+    const list = mergedEntries().filter(inScope)
+      .filter(e => !e._event && e._week === week);
     if (!list.length) { toast(T('saveSchedule.empty'), 'error'); release(); return; }
+    // 个人课表已有的课程不覆盖；仅「清空本周」隐藏过（deleted:true）的可重新加入
+    const pending = list.filter(e => {
+      const ov = S.overrides[e.id];
+      return !ov || ov.deleted;
+    });
+    if (!pending.length) { toast(T('saveSchedule.already'), 'ok'); release(); return; }
     const now = nowIso();
-    const items = list.map(e => {
+    const items = pending.map(e => {
       const old = S.overrides[e.id] || {};
       return {
         entryId: e.id,
@@ -2328,7 +2427,10 @@
     // 左侧页签：公共 / 个人课表
     document.querySelectorAll('.side-item[data-space]').forEach(btn =>
       btn.onclick = () => setSpace(btn.dataset.space));
-    $('nav-help').onclick = () => { toast(T('page.info')); closeSidebar(); };
+    $('nav-help').onclick = startGuide;
+    $('guide-next').onclick = nextGuideStep;
+    $('guide-skip').onclick = endGuide;
+    $('guide-mask').addEventListener('click', e => { if (e.target === $('guide-mask')) endGuide(); });
     $('nav-account').onclick = () => { if (!S.user) openAuth('login'); else openProfile(); closeSidebar(); };
     $('side-toggle').onclick = () => { S.sidebarOpen ? closeSidebar() : openSidebar(); };
 
@@ -2363,7 +2465,11 @@
       updateSpaceTabs(); initFilterOptions(); render();
     };
     $('btn-save-filters').onclick = saveFilters;
-    $('btn-save-schedule').onclick = saveScheduleToMine;
+    $('btn-save-schedule').onclick = () => {
+      saveScheduleToMine();
+      // 引导第2步：点了保存按钮即视为完成引导
+      if (guideStep === GUIDE_STEPS.length - 1) setTimeout(nextGuideStep, 400);
+    };
     $('btn-restore').onclick = openRestore;
     $('btn-clear-week').onclick = clearWeekPersonal;
     $('detail-star').onclick = toggleStar;

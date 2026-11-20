@@ -186,7 +186,7 @@ a { color: var(--blue); }
 /* 左下角建筑线稿水印：作为背景，不遮挡导航点击 */
 .sidebar::after {
   content: ''; position: absolute; left: 0; bottom: 0; width: 100%; height: 350px;
-  background: url('mgu-building.png?v=20261119u') no-repeat left bottom;
+  background: url('mgu-building.png?v=20261119x') no-repeat left bottom;
   background-size: contain; opacity: .28; pointer-events: none; z-index: 0;
 }
 .sidebar > * { position: relative; z-index: 1; }
@@ -487,6 +487,34 @@ table.grid-table tr.past td { opacity: .5; }
 .data-table th, .data-table td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; }
 .data-table th { color: var(--muted); font-weight: 600; }
 
+/* ------------------------------------------------------------ 新手引导 */
+/* 置灰遮罩：拦截所有点击，只有被 guide-focus 提升的元素可点 */
+.guide-mask { position: fixed; inset: 0; z-index: 240; background: rgba(15, 23, 42, .62); }
+.guide-mask.hidden { display: none; }
+/* 聚光灯：目标元素提升到遮罩之上，加蓝色高亮环 */
+.guide-focus { position: relative !important; z-index: 250 !important;
+  box-shadow: 0 0 0 4px #8fc0ec, 0 0 0 8px rgba(143, 192, 236, .45), 0 6px 18px rgba(0,0,0,.3) !important;
+  border-radius: 8px; }
+/* 跟随目标的小引导弹窗（固定在视口，由 JS 计算位置） */
+.guide-tip { position: fixed; z-index: 300; width: 280px; max-width: calc(100vw - 24px);
+  background: var(--surface); color: var(--text); border: 1px solid var(--line-strong);
+  border-radius: 12px; padding: 14px 16px; box-shadow: 0 12px 40px rgba(0,0,0,.28); }
+.guide-tip.hidden { display: none; }
+.guide-tip-step { display: table; font-size: 11px; font-weight: 700; letter-spacing: .5px;
+  color: #fff; background: var(--blue, #4a7ba8); border-radius: 20px; padding: 2px 10px; margin-bottom: 8px; }
+/* 引导猫咪：跟随当前主题，从弹窗右上角探出头，轻微上下浮动 */
+.guide-cat { position: absolute; top: -34px; right: 8px; width: 50px; height: 50px;
+  object-fit: contain; pointer-events: none; z-index: 1;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .22)); animation: guideCatFloat 2.4s ease-in-out infinite; }
+@keyframes guideCatFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.guide-tip-desc { margin: 0 0 12px; font-size: 12.5px; line-height: 1.6; color: var(--muted); }
+.guide-tip-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.guide-skip { background: none; border: 0; color: var(--muted); font-size: 12px; cursor: pointer; padding: 4px; }
+.guide-skip:hover { color: var(--text); text-decoration: underline; }
+.guide-next { background: linear-gradient(135deg, #6fa6cc, #4a7ba8); color: #fff; border: 0;
+  border-radius: 7px; padding: 7px 16px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.guide-next:hover { filter: brightness(1.08); }
+
 /* ------------------------------------------------------------ 反馈 */
 #toast { position: fixed; right: 18px; bottom: 18px; z-index: 200; display: grid; gap: 8px; }
 .toast-item { background: var(--ink); color: var(--on-ink); padding: 10px 14px; border-radius: 8px; font-size: 13px; max-width: 340px; box-shadow: 0 4px 16px rgba(0,0,0,.16); }
@@ -572,6 +600,8 @@ table.grid-table tr.past td { opacity: .5; }
 /* 个人视图：提示框隐藏后，banner 收缩贴合内容，猫咪与教学周徽标挨在一起 */
 .week-banner.compact { width: fit-content; max-width: 100%; gap: 10px; }
 .week-banner.compact .wb-badge { margin-left: 0; }
+/* 公共视图与个人视图一致：隐藏中间提示，只留猫咪与教学周徽标 */
+.week-banner.no-note .info-note { display: none; }
 
 /* 右下角浮动猫咪气泡（可拖动、可点击缩放） */
 .float-cat { position: fixed; right: 20px; bottom: 16px; width: 104px; z-index: 30;
