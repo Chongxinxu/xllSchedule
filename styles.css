@@ -228,7 +228,7 @@ a { color: var(--blue); }
 /* 蓝女仆主题：侧栏全身立绘背景，底部渐隐避开左下建筑线稿 */
 html[data-theme="maid"] .sidebar::before {
   content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
-  background: url('assets/deepseek-zhayan-biye.png?v=20261120f') no-repeat center top / cover;
+  background: url('assets/deepseek-zhayan-biye.png?v=20261121a') no-repeat center top / cover;
   opacity: .2;
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 82%);
   mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 82%);
@@ -236,7 +236,7 @@ html[data-theme="maid"] .sidebar::before {
 /* 左下角建筑线稿水印：作为背景，不遮挡导航点击 */
 .sidebar::after {
   content: ''; position: absolute; left: 0; bottom: 0; width: 100%; height: 350px;
-  background: url('mgu-building.png?v=20261120f') no-repeat left bottom;
+  background: url('mgu-building.png?v=20261121a') no-repeat left bottom;
   background-size: contain; opacity: .28; pointer-events: none; z-index: 0;
 }
 .sidebar > * { position: relative; z-index: 1; }
@@ -349,7 +349,7 @@ header.topbar {
 /* 蓝女仆主题：全站角色背景（铺满视口、固定不随滚动、不挡交互） */
 html[data-theme="maid"] body::before {
   content: ''; position: fixed; inset: 0;
-  background: url('assets/deepseek_title.jpg?v=20261120f') center center / cover no-repeat fixed;
+  background: url('assets/deepseek_title.jpg?v=20261121a') center center / cover no-repeat fixed;
   opacity: .14; pointer-events: none; z-index: 0;
 }
 html[data-theme="maid"] .app-shell { position: relative; z-index: 1; }
@@ -526,7 +526,7 @@ table.grid-table tr.past td { opacity: .5; }
 html[data-theme="maid"] #dlg-detail .dialog { position: relative; isolation: isolate; }
 html[data-theme="maid"] #dlg-detail .dialog::before {
   content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background: url('assets/deepseek-piezui.png?v=20261120f') no-repeat right top / auto 92%;
+  background: url('assets/deepseek-piezui.png?v=20261121a') no-repeat right top / auto 92%;
   opacity: .16;
 }
 html[data-theme="maid"] #dlg-detail .dialog > * { position: relative; z-index: 1; }

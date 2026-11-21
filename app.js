@@ -1367,7 +1367,7 @@
 
   // 无课图标：默认猫爪；蓝女仆主题改用喷水的浅蓝小鲸鱼
   function pawSrc() {
-    return S.theme === 'maid' ? 'assets/whale-noclass.png?v=20261120f' : 'assets/paw.png?v=20261120f';
+    return S.theme === 'maid' ? 'assets/whale-noclass.png?v=20261121a' : 'assets/paw.png?v=20261121a';
   }
   function pawImg() {
     return '<img class="empty-paw" src="' + pawSrc() + '" alt="" aria-hidden="true">';
@@ -1793,8 +1793,8 @@
       kv('detail.nameRu', displayCourse(e)) + kv('detail.nameZh', e._zh) +
       kv('detail.date', e['日期'] + ' · ' + T('wd.long.' + e._wd)) +
       kv('detail.time', e['时间']) + kv('detail.teacher', e['教师']) +
-      kv('detail.room', e['教室']) + kv('detail.mode', modeLabel(e['授课形式'])) +
-      kv('detail.group', e['班级']) + kv('detail.subgroup', e['小组']) +
+      kv('detail.room', e['教室'] === '网课' ? T('common.online') : e['教室']) + kv('detail.mode', modeLabel(e['授课形式'])) +
+      kv('detail.group', e['班级']) + kv('detail.subgroup', e['小组'] === '全部' ? T('common.all') : e['小组']) +
       kv('detail.status', statusLabel(e._status)) + '</div>';
 
     html += '<div class="pill-list" style="margin-bottom:12px">' +
